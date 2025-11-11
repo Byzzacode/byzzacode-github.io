@@ -26,10 +26,12 @@
 <div id="joinDiv" style="display:none;">
   <input type="text" id="joinCode" placeholder="Введите код комнаты">
   <button id="joinBtn">Играть</button>
+  <button id="backBtn">Назад</button>
 </div>
 
 <div id="gameDiv" style="display:none;">
   <p>Комната: <span id="roomCodeDisplay"></span></p>
+  <p>Вы играете за: <span id="playerSymbol"></span></p>
   <table id="board">
     <tr><td></td><td></td><td></td></tr>
     <tr><td></td><td></td><td></td></tr>
@@ -65,10 +67,12 @@ const joinRoomBtn = document.getElementById('joinRoomBtn');
 const joinDiv = document.getElementById('joinDiv');
 const joinCodeInput = document.getElementById('joinCode');
 const joinBtn = document.getElementById('joinBtn');
+const backBtn = document.getElementById('backBtn');
 const menuDiv = document.getElementById('menu');
 
 const gameDiv = document.getElementById('gameDiv');
 const roomCodeDisplay = document.getElementById('roomCodeDisplay');
+const playerSymbolEl = document.getElementById('playerSymbol');
 const cells = document.querySelectorAll('#board td');
 const turnDisplay = document.getElementById('turn');
 const resultDisplay = document.getElementById('result');
@@ -76,6 +80,7 @@ const resetBtn = document.getElementById('reset');
 const statusEl = document.getElementById('status');
 
 let roomCode = '';
+let playerSymbol = '';
 let processing = false;
 
 // ---- Утилиты ----
@@ -101,13 +106,15 @@ function showGame(){
   joinDiv.style.display = 'none';
   gameDiv.style.display = 'block';
   roomCodeDisplay.textContent = roomCode;
+  playerSymbolEl.textContent = playerSymbol;
 }
 
 // ---- Создание комнаты ----
 createRoomBtn.addEventListener('click', async ()=>{
-  roomCode = Math.floor(Math.random()*90 + 10).toString(); // 2-значный код
+  roomCode = Math.floor(Math.random()*90 + 10).toString();
+  playerSymbol = Math.random()<0.5 ? 'X':'O';
   const roomRef = ref(db, 'rooms/'+roomCode);
-  await set(roomRef, { board: emptyBoard(), turn:'X', winner:'', combo:null, players:1 });
+  await set(roomRef, { board: emptyBoard(), turn:'X', winner:'', combo:null, players:1, symbols:{player1:playerSymbol}});
   showGame();
   listenGame(roomCode);
 });
@@ -118,20 +125,21 @@ joinRoomBtn.addEventListener('click', ()=>{
   joinDiv.style.display = 'block';
 });
 
+backBtn.addEventListener('click', ()=>{
+  joinDiv.style.display = 'none';
+  menuDiv.style.display = 'block';
+});
+
 joinBtn.addEventListener('click', async ()=>{
   roomCode = joinCodeInput.value;
   const roomRef = ref(db, 'rooms/'+roomCode);
   const snap = await get(roomRef);
-  if(!snap.exists()){
-    alert("Комната не найдена!");
-    return;
-  }
+  if(!snap.exists()){ alert("Комната не найдена!"); return; }
   const data = snap.val();
-  if(data.players >= 2){
-    alert("Комната заполнена!");
-    return;
-  }
+  if(data.players >= 2){ alert("Комната заполнена!"); return; }
+  playerSymbol = data.symbols.player1==='X' ? 'O':'X';
   await set(ref(db,'rooms/'+roomCode+'/players'), 2);
+  await set(ref(db,'rooms/'+roomCode+'/symbols/player2'), playerSymbol);
   showGame();
   listenGame(roomCode);
 });
@@ -146,12 +154,27 @@ function listenGame(code){
     board.forEach((v,i)=>cells[i].textContent=v);
     turnDisplay.textContent = data.turn || 'X';
     cells.forEach(c => c.classList.remove('win'));
+
+    // Проверка победы
     if(data.winner){
       if(data.winner==='draw') resultDisplay.textContent = "Ничья!";
       else resultDisplay.textContent = "Победил: " + data.winner;
       if(data.combo) data.combo.forEach(i=>cells[i].classList.add('win'));
       cells.forEach(c=>c.style.pointerEvents='none');
-    } else cells.forEach(c=>c.style.pointerEvents='auto');
+      statusEl.textContent = '';
+    } else {
+      // Блокировка, если не твой ход или второго игрока нет
+      if(data.players<2){
+        statusEl.textContent = 'Ждём второго игрока...';
+        cells.forEach(c=>c.style.pointerEvents='none');
+      } else if(data.turn !== playerSymbol){
+        statusEl.textContent = 'Ход соперника...';
+        cells.forEach(c=>c.style.pointerEvents='none');
+      } else {
+        statusEl.textContent = 'Ваш ход!';
+        cells.forEach(c=>c.style.pointerEvents='auto');
+      }
+    }
   });
 }
 
@@ -163,21 +186,20 @@ cells.forEach((cell,index)=>{
     const gameRef = ref(db,'rooms/'+roomCode);
     try{
       await runTransaction(gameRef,current=>{
-        if(!current) return { board: emptyBoard(), turn:'X', winner:'', combo:null, players:2};
+        if(!current) return { board: emptyBoard(), turn:'X', winner:'', combo:null, players:2, symbols:{player1:'X',player2:'O'}};
         if(current.winner) return;
         if(current.board[index]) return;
-        const turn = current.turn || 'X';
-        current.board[index]=turn;
+        if(current.turn !== playerSymbol) return; // ход не твой
+        current.board[index] = playerSymbol;
         const res = checkWinner(current.board);
         if(res){
           current.winner = res.winner;
           current.combo = res.combo || null;
-        } else current.turn = turn==='X'?'O':'X';
+        } else current.turn = playerSymbol==='X'?'O':'X';
         return current;
       });
-    } catch(err){
-      console.error(err);
-    } finally { processing=false; }
+    } catch(err){ console.error(err); }
+    finally { processing=false; }
   });
 });
 
@@ -187,10 +209,11 @@ resetBtn.addEventListener('click', async ()=>{
   processing = true;
   const gameRef = ref(db,'rooms/'+roomCode);
   try{
-    await set(gameRef, { board: emptyBoard(), turn:'X', winner:'', combo:null, players:2 });
+    await set(gameRef, { board: emptyBoard(), turn:'X', winner:'', combo:null, players:2, symbols:{player1:'X',player2:'O'} });
     cells.forEach(c=>{c.textContent='';c.classList.remove('win');c.style.pointerEvents='auto';});
     turnDisplay.textContent='X';
     resultDisplay.textContent='';
+    statusEl.textContent='';
   } catch(err){ console.error(err); }
   finally { processing=false; }
 });
