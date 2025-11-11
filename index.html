@@ -2,40 +2,50 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>Крестики-нолики онлайн (стабильная версия)</title>
+<title>Крестики-нолики онлайн с комнатами</title>
 <style>
   body { text-align:center; font-family:Arial; background:#f0f0f0; }
   h1 { margin-top:20px; }
-  table { border-collapse: collapse; margin:40px auto; }
+  table { border-collapse: collapse; margin:20px auto; }
   td { border:2px solid #000; width:100px; height:100px; font-size:48px; text-align:center; cursor:pointer; user-select:none; }
   td.win { background: #90ee90; }
-  button { margin-top:20px; padding:10px 20px; font-size:16px; cursor:pointer; }
-  #status { margin-top:10px; color:#333; }
+  button, input { margin-top:10px; padding:10px 20px; font-size:16px; cursor:pointer; }
+  #menu { margin-top:50px; }
+  #status { color:#333; margin-top:10px; }
 </style>
 </head>
 <body>
 
 <h1>Крестики-нолики онлайн</h1>
 
-<table id="board">
-  <tr><td></td><td></td><td></td></tr>
-  <tr><td></td><td></td><td></td></tr>
-  <tr><td></td><td></td><td></td></tr>
-</table>
+<div id="menu">
+  <button id="createRoomBtn">Создать комнату</button>
+  <button id="joinRoomBtn">Присоединиться к комнате</button>
+</div>
 
-<p>Ход: <span id="turn">X</span></p>
-<p id="result"></p>
-<button id="reset">Играть ещё</button>
-<p id="status"></p>
+<div id="joinDiv" style="display:none;">
+  <input type="text" id="joinCode" placeholder="Введите код комнаты">
+  <button id="joinBtn">Играть</button>
+</div>
+
+<div id="gameDiv" style="display:none;">
+  <p>Комната: <span id="roomCodeDisplay"></span></p>
+  <table id="board">
+    <tr><td></td><td></td><td></td></tr>
+    <tr><td></td><td></td><td></td></tr>
+    <tr><td></td><td></td><td></td></tr>
+  </table>
+  <p>Ход: <span id="turn">X</span></p>
+  <p id="result"></p>
+  <button id="reset">Играть ещё</button>
+  <p id="status"></p>
+</div>
 
 <script type="module">
-// ---- Импорты Firebase ----
+// ---- Firebase ----
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-app.js";
-import {
-  getDatabase, ref, set, onValue, get, runTransaction
-} from "https://www.gstatic.com/firebasejs/10.2.0/firebase-database.js";
+import { getDatabase, ref, set, get, runTransaction, onValue } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-database.js";
 
-// ---- Конфиг Firebase (твой проект) ----
 const firebaseConfig = {
   apiKey: "AIzaSyCHGyVydYRtpgCPeT-Ja_7YU4H-a0z_k0I",
   authDomain: "werrr-f91c8.firebaseapp.com",
@@ -48,14 +58,25 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-const gameRef = ref(db, 'games/game1'); // единичная тестовая игра
 
 // ---- DOM ----
-const cells = document.querySelectorAll('td');
+const createRoomBtn = document.getElementById('createRoomBtn');
+const joinRoomBtn = document.getElementById('joinRoomBtn');
+const joinDiv = document.getElementById('joinDiv');
+const joinCodeInput = document.getElementById('joinCode');
+const joinBtn = document.getElementById('joinBtn');
+const menuDiv = document.getElementById('menu');
+
+const gameDiv = document.getElementById('gameDiv');
+const roomCodeDisplay = document.getElementById('roomCodeDisplay');
+const cells = document.querySelectorAll('#board td');
 const turnDisplay = document.getElementById('turn');
 const resultDisplay = document.getElementById('result');
 const resetBtn = document.getElementById('reset');
 const statusEl = document.getElementById('status');
+
+let roomCode = '';
+let processing = false;
 
 // ---- Утилиты ----
 function emptyBoard(){ return ["","","","","","","","",""]; }
@@ -75,126 +96,104 @@ function checkWinner(board){
   return board.every(cell => cell) ? {winner:'draw'} : null;
 }
 
-// Флаг чтобы не допустить мульти-запросов с одного клиента
-let processing = false;
-
-// ---- Инициализация: создаём запись только если её нет ----
-async function ensureGameExists(){
-  try {
-    const snap = await get(gameRef);
-    if(!snap.exists()){
-      await set(gameRef, { board: emptyBoard(), turn: 'X', winner: '', combo: null });
-      console.log("Game created (initial).");
-    } else {
-      console.log("Game exists already.");
-    }
-  } catch(err){
-    console.error("ensureGameExists error:", err);
-    statusEl.textContent = "Ошибка подключения к базе: " + err.message;
-  }
+function showGame(){
+  menuDiv.style.display = 'none';
+  joinDiv.style.display = 'none';
+  gameDiv.style.display = 'block';
+  roomCodeDisplay.textContent = roomCode;
 }
-await ensureGameExists(); // запускаем при загрузке
 
-// ---- Глобальный слушатель: обновляем DOM при изменениях ----
-onValue(gameRef, snapshot => {
-  const data = snapshot.val();
-  if(!data) return;
-  const board = data.board || emptyBoard();
-  board.forEach((v,i) => cells[i].textContent = v);
-  turnDisplay.textContent = data.turn || 'X';
-
-  // очищаем все подсветки
-  cells.forEach(c => c.classList.remove('win'));
-
-  if(data.winner){
-    if(data.winner === 'draw') resultDisplay.textContent = "Ничья!";
-    else resultDisplay.textContent = "Победил: " + data.winner;
-
-    if(data.combo && Array.isArray(data.combo)){
-      data.combo.forEach(i => { if(cells[i]) cells[i].classList.add('win'); });
-    }
-    // блокируем клики
-    cells.forEach(c => c.style.pointerEvents = 'none');
-  } else {
-    resultDisplay.textContent = '';
-    cells.forEach(c => c.style.pointerEvents = 'auto');
-  }
+// ---- Создание комнаты ----
+createRoomBtn.addEventListener('click', async ()=>{
+  roomCode = Math.floor(Math.random()*90 + 10).toString(); // 2-значный код
+  const roomRef = ref(db, 'rooms/'+roomCode);
+  await set(roomRef, { board: emptyBoard(), turn:'X', winner:'', combo:null, players:1 });
+  showGame();
+  listenGame(roomCode);
 });
 
-// ---- Обработка хода: атомарно через runTransaction ----
-cells.forEach((cell, index) => {
-  cell.addEventListener('click', async () => {
-    if(processing) return; // локальная защита
+// ---- Присоединение к комнате ----
+joinRoomBtn.addEventListener('click', ()=>{
+  menuDiv.style.display = 'none';
+  joinDiv.style.display = 'block';
+});
+
+joinBtn.addEventListener('click', async ()=>{
+  roomCode = joinCodeInput.value;
+  const roomRef = ref(db, 'rooms/'+roomCode);
+  const snap = await get(roomRef);
+  if(!snap.exists()){
+    alert("Комната не найдена!");
+    return;
+  }
+  const data = snap.val();
+  if(data.players >= 2){
+    alert("Комната заполнена!");
+    return;
+  }
+  await set(ref(db,'rooms/'+roomCode+'/players'), 2);
+  showGame();
+  listenGame(roomCode);
+});
+
+// ---- Слушатель игры ----
+function listenGame(code){
+  const gameRef = ref(db,'rooms/'+code);
+  onValue(gameRef, snapshot=>{
+    const data = snapshot.val();
+    if(!data) return;
+    const board = data.board || emptyBoard();
+    board.forEach((v,i)=>cells[i].textContent=v);
+    turnDisplay.textContent = data.turn || 'X';
+    cells.forEach(c => c.classList.remove('win'));
+    if(data.winner){
+      if(data.winner==='draw') resultDisplay.textContent = "Ничья!";
+      else resultDisplay.textContent = "Победил: " + data.winner;
+      if(data.combo) data.combo.forEach(i=>cells[i].classList.add('win'));
+      cells.forEach(c=>c.style.pointerEvents='none');
+    } else cells.forEach(c=>c.style.pointerEvents='auto');
+  });
+}
+
+// ---- Ходы ----
+cells.forEach((cell,index)=>{
+  cell.addEventListener('click', async ()=>{
+    if(processing) return;
     processing = true;
-    statusEl.textContent = "Отправка хода...";
-    try {
-      await runTransaction(gameRef, current => {
-        // если нет данных — инициализируем
-        if(!current) return { board: emptyBoard(), turn:'X', winner:'', combo:null };
-
-        // если уже есть победитель — ничего не делаем
-        if(current.winner) return; // abort - transaction вернёт null и не запишет
-
-        // защититься от непредвиденных форматов
-        if(!Array.isArray(current.board) || current.board.length !== 9){
-          current.board = emptyBoard();
-        }
-        // если клетка занята — abort
+    const gameRef = ref(db,'rooms/'+roomCode);
+    try{
+      await runTransaction(gameRef,current=>{
+        if(!current) return { board: emptyBoard(), turn:'X', winner:'', combo:null, players:2};
+        if(current.winner) return;
         if(current.board[index]) return;
-
-        // ставим символ текущего хода
-        const currTurn = current.turn || 'X';
-        current.board[index] = currTurn;
-
-        // проверяем победу
+        const turn = current.turn || 'X';
+        current.board[index]=turn;
         const res = checkWinner(current.board);
         if(res){
           current.winner = res.winner;
           current.combo = res.combo || null;
-        } else {
-          current.turn = currTurn === 'X' ? 'O' : 'X';
-          current.winner = '';
-          current.combo = null;
-        }
-        return current; // записать обновлённое состояние
+        } else current.turn = turn==='X'?'O':'X';
+        return current;
       });
-      statusEl.textContent = "Ход выполнен.";
     } catch(err){
-      console.error("Transaction error:", err);
-      statusEl.textContent = "Ошибка хода: " + err.message;
-    } finally {
-      processing = false;
-      // чуть позже уберём сообщение
-      setTimeout(()=> statusEl.textContent = "", 1200);
-    }
+      console.error(err);
+    } finally { processing=false; }
   });
 });
 
-// ---- Сброс: атомарно через runTransaction (гарантированно перезаписывает) ----
-resetBtn.addEventListener('click', async () => {
+// ---- Сброс ----
+resetBtn.addEventListener('click', async ()=>{
   if(processing) return;
   processing = true;
-  statusEl.textContent = "Сброс...";
-  const empty = emptyBoard();
-  try {
-    // runTransaction используется, чтобы избежать конфликтов
-    await runTransaction(gameRef, () => {
-      return { board: empty, turn:'X', winner:'', combo:null };
-    });
-    // локальный мгновенный отклик
-    cells.forEach(c => { c.textContent = ''; c.classList.remove('win'); c.style.pointerEvents='auto'; });
-    turnDisplay.textContent = 'X';
-    resultDisplay.textContent = '';
-    statusEl.textContent = "Готово.";
-  } catch(err){
-    console.error("Reset error:", err);
-    statusEl.textContent = "Ошибка сброса: " + err.message;
-  } finally {
-    processing = false;
-    setTimeout(()=> statusEl.textContent = "", 1000);
-  }
+  const gameRef = ref(db,'rooms/'+roomCode);
+  try{
+    await set(gameRef, { board: emptyBoard(), turn:'X', winner:'', combo:null, players:2 });
+    cells.forEach(c=>{c.textContent='';c.classList.remove('win');c.style.pointerEvents='auto';});
+    turnDisplay.textContent='X';
+    resultDisplay.textContent='';
+  } catch(err){ console.error(err); }
+  finally { processing=false; }
 });
-
 </script>
 
 </body>
