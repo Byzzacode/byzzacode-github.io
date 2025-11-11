@@ -1,1 +1,201 @@
-https://byzzacode.github.io/byzzacode-github.io/
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Крестики-нолики онлайн (стабильная версия)</title>
+<style>
+  body { text-align:center; font-family:Arial; background:#f0f0f0; }
+  h1 { margin-top:20px; }
+  table { border-collapse: collapse; margin:40px auto; }
+  td { border:2px solid #000; width:100px; height:100px; font-size:48px; text-align:center; cursor:pointer; user-select:none; }
+  td.win { background: #90ee90; }
+  button { margin-top:20px; padding:10px 20px; font-size:16px; cursor:pointer; }
+  #status { margin-top:10px; color:#333; }
+</style>
+</head>
+<body>
+
+<h1>Крестики-нолики онлайн</h1>
+
+<table id="board">
+  <tr><td></td><td></td><td></td></tr>
+  <tr><td></td><td></td><td></td></tr>
+  <tr><td></td><td></td><td></td></tr>
+</table>
+
+<p>Ход: <span id="turn">X</span></p>
+<p id="result"></p>
+<button id="reset">Играть ещё</button>
+<p id="status"></p>
+
+<script type="module">
+// ---- Импорты Firebase ----
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-app.js";
+import {
+  getDatabase, ref, set, onValue, get, runTransaction
+} from "https://www.gstatic.com/firebasejs/10.2.0/firebase-database.js";
+
+// ---- Конфиг Firebase (твой проект) ----
+const firebaseConfig = {
+  apiKey: "AIzaSyCHGyVydYRtpgCPeT-Ja_7YU4H-a0z_k0I",
+  authDomain: "werrr-f91c8.firebaseapp.com",
+  databaseURL: "https://werrr-f91c8-default-rtdb.firebaseio.com",
+  projectId: "werrr-f91c8",
+  storageBucket: "werrr-f91c8.appspot.com",
+  messagingSenderId: "32501241615",
+  appId: "1:32501241615:web:d09c098d13da7ea7a5107a"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const gameRef = ref(db, 'games/game1'); // единичная тестовая игра
+
+// ---- DOM ----
+const cells = document.querySelectorAll('td');
+const turnDisplay = document.getElementById('turn');
+const resultDisplay = document.getElementById('result');
+const resetBtn = document.getElementById('reset');
+const statusEl = document.getElementById('status');
+
+// ---- Утилиты ----
+function emptyBoard(){ return ["","","","","","","","",""]; }
+
+function checkWinner(board){
+  const combos = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+  for(let combo of combos){
+    const [a,b,c] = combo;
+    if(board[a] && board[a]===board[b] && board[a]===board[c]){
+      return {winner: board[a], combo};
+    }
+  }
+  return board.every(cell => cell) ? {winner:'draw'} : null;
+}
+
+// Флаг чтобы не допустить мульти-запросов с одного клиента
+let processing = false;
+
+// ---- Инициализация: создаём запись только если её нет ----
+async function ensureGameExists(){
+  try {
+    const snap = await get(gameRef);
+    if(!snap.exists()){
+      await set(gameRef, { board: emptyBoard(), turn: 'X', winner: '', combo: null });
+      console.log("Game created (initial).");
+    } else {
+      console.log("Game exists already.");
+    }
+  } catch(err){
+    console.error("ensureGameExists error:", err);
+    statusEl.textContent = "Ошибка подключения к базе: " + err.message;
+  }
+}
+await ensureGameExists(); // запускаем при загрузке
+
+// ---- Глобальный слушатель: обновляем DOM при изменениях ----
+onValue(gameRef, snapshot => {
+  const data = snapshot.val();
+  if(!data) return;
+  const board = data.board || emptyBoard();
+  board.forEach((v,i) => cells[i].textContent = v);
+  turnDisplay.textContent = data.turn || 'X';
+
+  // очищаем все подсветки
+  cells.forEach(c => c.classList.remove('win'));
+
+  if(data.winner){
+    if(data.winner === 'draw') resultDisplay.textContent = "Ничья!";
+    else resultDisplay.textContent = "Победил: " + data.winner;
+
+    if(data.combo && Array.isArray(data.combo)){
+      data.combo.forEach(i => { if(cells[i]) cells[i].classList.add('win'); });
+    }
+    // блокируем клики
+    cells.forEach(c => c.style.pointerEvents = 'none');
+  } else {
+    resultDisplay.textContent = '';
+    cells.forEach(c => c.style.pointerEvents = 'auto');
+  }
+});
+
+// ---- Обработка хода: атомарно через runTransaction ----
+cells.forEach((cell, index) => {
+  cell.addEventListener('click', async () => {
+    if(processing) return; // локальная защита
+    processing = true;
+    statusEl.textContent = "Отправка хода...";
+    try {
+      await runTransaction(gameRef, current => {
+        // если нет данных — инициализируем
+        if(!current) return { board: emptyBoard(), turn:'X', winner:'', combo:null };
+
+        // если уже есть победитель — ничего не делаем
+        if(current.winner) return; // abort - transaction вернёт null и не запишет
+
+        // защититься от непредвиденных форматов
+        if(!Array.isArray(current.board) || current.board.length !== 9){
+          current.board = emptyBoard();
+        }
+        // если клетка занята — abort
+        if(current.board[index]) return;
+
+        // ставим символ текущего хода
+        const currTurn = current.turn || 'X';
+        current.board[index] = currTurn;
+
+        // проверяем победу
+        const res = checkWinner(current.board);
+        if(res){
+          current.winner = res.winner;
+          current.combo = res.combo || null;
+        } else {
+          current.turn = currTurn === 'X' ? 'O' : 'X';
+          current.winner = '';
+          current.combo = null;
+        }
+        return current; // записать обновлённое состояние
+      });
+      statusEl.textContent = "Ход выполнен.";
+    } catch(err){
+      console.error("Transaction error:", err);
+      statusEl.textContent = "Ошибка хода: " + err.message;
+    } finally {
+      processing = false;
+      // чуть позже уберём сообщение
+      setTimeout(()=> statusEl.textContent = "", 1200);
+    }
+  });
+});
+
+// ---- Сброс: атомарно через runTransaction (гарантированно перезаписывает) ----
+resetBtn.addEventListener('click', async () => {
+  if(processing) return;
+  processing = true;
+  statusEl.textContent = "Сброс...";
+  const empty = emptyBoard();
+  try {
+    // runTransaction используется, чтобы избежать конфликтов
+    await runTransaction(gameRef, () => {
+      return { board: empty, turn:'X', winner:'', combo:null };
+    });
+    // локальный мгновенный отклик
+    cells.forEach(c => { c.textContent = ''; c.classList.remove('win'); c.style.pointerEvents='auto'; });
+    turnDisplay.textContent = 'X';
+    resultDisplay.textContent = '';
+    statusEl.textContent = "Готово.";
+  } catch(err){
+    console.error("Reset error:", err);
+    statusEl.textContent = "Ошибка сброса: " + err.message;
+  } finally {
+    processing = false;
+    setTimeout(()=> statusEl.textContent = "", 1000);
+  }
+});
+
+</script>
+
+</body>
+</html>
