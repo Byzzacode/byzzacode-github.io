@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>Крестики-нолики онлайн с комнатами</title>
+<title>Крестики-нолики онлайн</title>
 <style>
   body { text-align:center; font-family:Arial; background:#f0f0f0; }
   h1 { margin-top:20px; }
@@ -44,7 +44,6 @@
 </div>
 
 <script type="module">
-// ---- Firebase ----
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-app.js";
 import { getDatabase, ref, set, get, runTransaction, onValue } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-database.js";
 
@@ -61,7 +60,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// ---- DOM ----
 const createRoomBtn = document.getElementById('createRoomBtn');
 const joinRoomBtn = document.getElementById('joinRoomBtn');
 const joinDiv = document.getElementById('joinDiv');
@@ -81,9 +79,9 @@ const statusEl = document.getElementById('status');
 
 let roomCode = '';
 let playerSymbol = '';
+let playerId = ''; // "player1" или "player2"
 let processing = false;
 
-// ---- Утилиты ----
 function emptyBoard(){ return ["","","","","","","","",""]; }
 
 function checkWinner(board){
@@ -109,17 +107,22 @@ function showGame(){
   playerSymbolEl.textContent = playerSymbol;
 }
 
-// ---- Создание комнаты ----
 createRoomBtn.addEventListener('click', async ()=>{
-  roomCode = Math.floor(Math.random()*90 + 10).toString();
-  playerSymbol = Math.random()<0.5 ? 'X':'O';
-  const roomRef = ref(db, 'rooms/'+roomCode);
-  await set(roomRef, { board: emptyBoard(), turn:'X', winner:'', combo:null, players:1, symbols:{player1:playerSymbol}});
+  roomCode = Math.floor(Math.random()*90+10).toString();
+  playerSymbol = Math.random()<0.5?'X':'O';
+  playerId = 'player1';
+  const roomRef = ref(db,'rooms/'+roomCode);
+  await set(roomRef,{
+    board: emptyBoard(),
+    turn: 'X',
+    winner: '',
+    combo: null,
+    players: {player1: {symbol:playerSymbol}, player2:null}
+  });
   showGame();
-  listenGame(roomCode);
+  listenGame();
 });
 
-// ---- Присоединение к комнате ----
 joinRoomBtn.addEventListener('click', ()=>{
   menuDiv.style.display = 'none';
   joinDiv.style.display = 'block';
@@ -132,30 +135,28 @@ backBtn.addEventListener('click', ()=>{
 
 joinBtn.addEventListener('click', async ()=>{
   roomCode = joinCodeInput.value;
-  const roomRef = ref(db, 'rooms/'+roomCode);
+  const roomRef = ref(db,'rooms/'+roomCode);
   const snap = await get(roomRef);
   if(!snap.exists()){ alert("Комната не найдена!"); return; }
   const data = snap.val();
-  if(data.players >= 2){ alert("Комната заполнена!"); return; }
-  playerSymbol = data.symbols.player1==='X' ? 'O':'X';
-  await set(ref(db,'rooms/'+roomCode+'/players'), 2);
-  await set(ref(db,'rooms/'+roomCode+'/symbols/player2'), playerSymbol);
+  if(data.players.player2){ alert("Комната заполнена!"); return; }
+  playerSymbol = data.players.player1.symbol==='X'?'O':'X';
+  playerId = 'player2';
+  await set(ref(db,'rooms/'+roomCode+'/players/player2'), {symbol:playerSymbol});
   showGame();
-  listenGame(roomCode);
+  listenGame();
 });
 
-// ---- Слушатель игры ----
-function listenGame(code){
-  const gameRef = ref(db,'rooms/'+code);
+function listenGame(){
+  const gameRef = ref(db,'rooms/'+roomCode);
   onValue(gameRef, snapshot=>{
     const data = snapshot.val();
     if(!data) return;
     const board = data.board || emptyBoard();
     board.forEach((v,i)=>cells[i].textContent=v);
-    turnDisplay.textContent = data.turn || 'X';
+    turnDisplay.textContent = data.turn;
     cells.forEach(c => c.classList.remove('win'));
 
-    // Проверка победы
     if(data.winner){
       if(data.winner==='draw') resultDisplay.textContent = "Ничья!";
       else resultDisplay.textContent = "Победил: " + data.winner;
@@ -163,59 +164,62 @@ function listenGame(code){
       cells.forEach(c=>c.style.pointerEvents='none');
       statusEl.textContent = '';
     } else {
-      // Блокировка, если не твой ход или второго игрока нет
-      if(data.players<2){
-        statusEl.textContent = 'Ждём второго игрока...';
+      if(!data.players.player2){
+        statusEl.textContent = "Ждём второго игрока...";
         cells.forEach(c=>c.style.pointerEvents='none');
-      } else if(data.turn !== playerSymbol){
-        statusEl.textContent = 'Ход соперника...';
+      } else if(data.turn!==playerSymbol){
+        statusEl.textContent = "Ход соперника...";
         cells.forEach(c=>c.style.pointerEvents='none');
       } else {
-        statusEl.textContent = 'Ваш ход!';
+        statusEl.textContent = "Ваш ход!";
         cells.forEach(c=>c.style.pointerEvents='auto');
       }
     }
   });
 }
 
-// ---- Ходы ----
 cells.forEach((cell,index)=>{
   cell.addEventListener('click', async ()=>{
     if(processing) return;
-    processing = true;
+    processing=true;
     const gameRef = ref(db,'rooms/'+roomCode);
     try{
       await runTransaction(gameRef,current=>{
-        if(!current) return { board: emptyBoard(), turn:'X', winner:'', combo:null, players:2, symbols:{player1:'X',player2:'O'}};
+        if(!current) return {board: emptyBoard(), turn:'X', winner:'', combo:null, players:{player1:{symbol:'X'}, player2:{symbol:'O'}}};
         if(current.winner) return;
         if(current.board[index]) return;
-        if(current.turn !== playerSymbol) return; // ход не твой
+        if(current.turn!==playerSymbol) return;
         current.board[index] = playerSymbol;
         const res = checkWinner(current.board);
         if(res){
-          current.winner = res.winner;
-          current.combo = res.combo || null;
+          current.winner=res.winner;
+          current.combo=res.combo||null;
         } else current.turn = playerSymbol==='X'?'O':'X';
         return current;
       });
-    } catch(err){ console.error(err); }
-    finally { processing=false; }
+    } catch(e){ console.error(e); }
+    finally{ processing=false; }
   });
 });
 
-// ---- Сброс ----
 resetBtn.addEventListener('click', async ()=>{
   if(processing) return;
-  processing = true;
+  processing=true;
   const gameRef = ref(db,'rooms/'+roomCode);
   try{
-    await set(gameRef, { board: emptyBoard(), turn:'X', winner:'', combo:null, players:2, symbols:{player1:'X',player2:'O'} });
-    cells.forEach(c=>{c.textContent='';c.classList.remove('win');c.style.pointerEvents='auto';});
-    turnDisplay.textContent='X';
-    resultDisplay.textContent='';
-    statusEl.textContent='';
-  } catch(err){ console.error(err); }
-  finally { processing=false; }
+    await get(gameRef).then(dataSnap=>{
+      const data = dataSnap.val();
+      if(!data) return;
+      set(gameRef,{
+        board: emptyBoard(),
+        turn:'X',
+        winner:'',
+        combo:null,
+        players:data.players
+      });
+    });
+  } catch(e){ console.error(e);}
+  finally{ processing=false; }
 });
 </script>
 
