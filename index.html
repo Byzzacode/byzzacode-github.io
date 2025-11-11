@@ -2,21 +2,20 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>Крестики-нолики онлайн</title>
+<title>Крестики-нолики Mini App</title>
 <style>
   body { text-align:center; font-family:Arial; background:#f0f0f0; }
   h1 { margin-top:20px; }
   table { border-collapse: collapse; margin:20px auto; }
-  td { border:2px solid #000; width:100px; height:100px; font-size:48px; text-align:center; cursor:pointer; user-select:none; }
-  td.win { background: #90ee90; }
+  td { border:2px solid #000; width:80px; height:80px; font-size:36px; text-align:center; cursor:pointer; user-select:none; }
+  td.win { background:#90ee90; }
   button, input { margin-top:10px; padding:10px 20px; font-size:16px; cursor:pointer; }
-  #menu { margin-top:50px; }
-  #status { color:#333; margin-top:10px; }
+  #menu, #joinDiv, #gameDiv { margin-top:30px; }
 </style>
 </head>
 <body>
 
-<h1>Крестики-нолики онлайн</h1>
+<h1>Крестики-нолики</h1>
 
 <div id="menu">
   <button id="createRoomBtn">Создать комнату</button>
@@ -31,22 +30,21 @@
 
 <div id="gameDiv" style="display:none;">
   <p>Комната: <span id="roomCodeDisplay"></span></p>
-  <p>Вы играете за: <span id="playerSymbol"></span></p>
+  <p>Вы: <span id="playerSymbol"></span></p>
   <table id="board">
     <tr><td></td><td></td><td></td></tr>
     <tr><td></td><td></td><td></td></tr>
     <tr><td></td><td></td><td></td></tr>
   </table>
-  <p>Ход: <span id="turn">X</span></p>
+  <p>Ход: <span id="turn"></span></p>
   <p id="result"></p>
-  <button id="reset">Играть ещё</button>
-  <p id="status"></p>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-app.js";
 import { getDatabase, ref, set, get, runTransaction, onValue } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-database.js";
 
+// 🔹 Firebase конфиг
 const firebaseConfig = {
   apiKey: "AIzaSyCHGyVydYRtpgCPeT-Ja_7YU4H-a0z_k0I",
   authDomain: "werrr-f91c8.firebaseapp.com",
@@ -60,13 +58,14 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-const createRoomBtn = document.getElementById('createRoomBtn');
-const joinRoomBtn = document.getElementById('joinRoomBtn');
+// DOM
+const menu = document.getElementById('menu');
+const createBtn = document.getElementById('createRoomBtn');
+const joinBtnMenu = document.getElementById('joinRoomBtn');
 const joinDiv = document.getElementById('joinDiv');
 const joinCodeInput = document.getElementById('joinCode');
 const joinBtn = document.getElementById('joinBtn');
 const backBtn = document.getElementById('backBtn');
-const menuDiv = document.getElementById('menu');
 
 const gameDiv = document.getElementById('gameDiv');
 const roomCodeDisplay = document.getElementById('roomCodeDisplay');
@@ -74,12 +73,10 @@ const playerSymbolEl = document.getElementById('playerSymbol');
 const cells = document.querySelectorAll('#board td');
 const turnDisplay = document.getElementById('turn');
 const resultDisplay = document.getElementById('result');
-const resetBtn = document.getElementById('reset');
-const statusEl = document.getElementById('status');
 
 let roomCode = '';
 let playerSymbol = '';
-let playerId = ''; // "player1" или "player2"
+let playerId = '';
 let processing = false;
 
 function emptyBoard(){ return ["","","","","","","","",""]; }
@@ -90,24 +87,24 @@ function checkWinner(board){
     [0,3,6],[1,4,7],[2,5,8],
     [0,4,8],[2,4,6]
   ];
-  for(let combo of combos){
-    const [a,b,c] = combo;
-    if(board[a] && board[a]===board[b] && board[a]===board[c]){
-      return {winner: board[a], combo};
+  for(let c of combos){
+    const [a,b,c1] = c;
+    if(board[a] && board[a]===board[b] && board[a]===board[c1]){
+      return {winner: board[a], combo:c};
     }
   }
-  return board.every(cell => cell) ? {winner:'draw'} : null;
+  return board.every(cell=>cell)? {winner:'draw'}: null;
 }
 
 function showGame(){
-  menuDiv.style.display = 'none';
-  joinDiv.style.display = 'none';
-  gameDiv.style.display = 'block';
+  menu.style.display='none';
+  joinDiv.style.display='none';
+  gameDiv.style.display='block';
   roomCodeDisplay.textContent = roomCode;
   playerSymbolEl.textContent = playerSymbol;
 }
 
-createRoomBtn.addEventListener('click', async ()=>{
+createBtn.addEventListener('click', async ()=>{
   roomCode = Math.floor(Math.random()*90+10).toString();
   playerSymbol = Math.random()<0.5?'X':'O';
   playerId = 'player1';
@@ -123,14 +120,14 @@ createRoomBtn.addEventListener('click', async ()=>{
   listenGame();
 });
 
-joinRoomBtn.addEventListener('click', ()=>{
-  menuDiv.style.display = 'none';
-  joinDiv.style.display = 'block';
+joinBtnMenu.addEventListener('click', ()=>{
+  menu.style.display='none';
+  joinDiv.style.display='block';
 });
 
 backBtn.addEventListener('click', ()=>{
-  joinDiv.style.display = 'none';
-  menuDiv.style.display = 'block';
+  joinDiv.style.display='none';
+  menu.style.display='block';
 });
 
 joinBtn.addEventListener('click', async ()=>{
@@ -142,7 +139,7 @@ joinBtn.addEventListener('click', async ()=>{
   if(data.players.player2){ alert("Комната заполнена!"); return; }
   playerSymbol = data.players.player1.symbol==='X'?'O':'X';
   playerId = 'player2';
-  await set(ref(db,'rooms/'+roomCode+'/players/player2'), {symbol:playerSymbol});
+  await set(ref(db,'rooms/'+roomCode+'/players/player2'),{symbol:playerSymbol});
   showGame();
   listenGame();
 });
@@ -155,23 +152,21 @@ function listenGame(){
     const board = data.board || emptyBoard();
     board.forEach((v,i)=>cells[i].textContent=v);
     turnDisplay.textContent = data.turn;
-    cells.forEach(c => c.classList.remove('win'));
-
+    cells.forEach(c=>c.classList.remove('win'));
     if(data.winner){
-      if(data.winner==='draw') resultDisplay.textContent = "Ничья!";
-      else resultDisplay.textContent = "Победил: " + data.winner;
+      if(data.winner==='draw') resultDisplay.textContent="Ничья!";
+      else resultDisplay.textContent="Победил: "+data.winner;
       if(data.combo) data.combo.forEach(i=>cells[i].classList.add('win'));
       cells.forEach(c=>c.style.pointerEvents='none');
-      statusEl.textContent = '';
     } else {
       if(!data.players.player2){
-        statusEl.textContent = "Ждём второго игрока...";
+        turnDisplay.textContent='Ждём второго игрока...';
         cells.forEach(c=>c.style.pointerEvents='none');
       } else if(data.turn!==playerSymbol){
-        statusEl.textContent = "Ход соперника...";
+        turnDisplay.textContent='Ход соперника...';
         cells.forEach(c=>c.style.pointerEvents='none');
       } else {
-        statusEl.textContent = "Ваш ход!";
+        turnDisplay.textContent='Ваш ход';
         cells.forEach(c=>c.style.pointerEvents='auto');
       }
     }
@@ -185,11 +180,11 @@ cells.forEach((cell,index)=>{
     const gameRef = ref(db,'rooms/'+roomCode);
     try{
       await runTransaction(gameRef,current=>{
-        if(!current) return {board: emptyBoard(), turn:'X', winner:'', combo:null, players:{player1:{symbol:'X'}, player2:{symbol:'O'}}};
+        if(!current) return {board: emptyBoard(), turn:'X', winner:'', combo:null, players:{player1:{symbol:'X'},player2:{symbol:'O'}}};
         if(current.winner) return;
         if(current.board[index]) return;
         if(current.turn!==playerSymbol) return;
-        current.board[index] = playerSymbol;
+        current.board[index]=playerSymbol;
         const res = checkWinner(current.board);
         if(res){
           current.winner=res.winner;
@@ -200,26 +195,6 @@ cells.forEach((cell,index)=>{
     } catch(e){ console.error(e); }
     finally{ processing=false; }
   });
-});
-
-resetBtn.addEventListener('click', async ()=>{
-  if(processing) return;
-  processing=true;
-  const gameRef = ref(db,'rooms/'+roomCode);
-  try{
-    await get(gameRef).then(dataSnap=>{
-      const data = dataSnap.val();
-      if(!data) return;
-      set(gameRef,{
-        board: emptyBoard(),
-        turn:'X',
-        winner:'',
-        combo:null,
-        players:data.players
-      });
-    });
-  } catch(e){ console.error(e);}
-  finally{ processing=false; }
 });
 </script>
 
