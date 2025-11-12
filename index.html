@@ -4,13 +4,99 @@
 <meta charset="UTF-8">
 <title>Крестики-нолики Mini App</title>
 <style>
-  body { text-align:center; font-family:Arial; background:#f0f0f0; }
-  h1 { margin-top:20px; }
-  table { border-collapse: collapse; margin:20px auto; }
-  td { border:2px solid #000; width:80px; height:80px; font-size:36px; text-align:center; cursor:pointer; user-select:none; }
-  td.win { background:#90ee90; }
-  button, input { margin-top:10px; padding:10px 20px; font-size:16px; cursor:pointer; }
-  #menu, #joinDiv, #gameDiv { margin-top:30px; }
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    text-align: center;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: linear-gradient(135deg, #e0e0e0, #f8f8f8);
+    margin: 0;
+    padding: 0;
+  }
+  h1 {
+    margin-top: 40px;
+    color: #333;
+    font-size: 2.2em;
+    letter-spacing: 1px;
+  }
+  table {
+    border-collapse: collapse;
+    margin: 30px auto;
+    box-shadow: 0 0 10px rgba(0,0,0,0.15);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  td {
+    border: 2px solid #222;
+    width: 90px;
+    height: 90px;
+    font-size: 42px;
+    font-weight: bold;
+    text-align: center;
+    vertical-align: middle;
+    cursor: pointer;
+    background: #fff;
+    transition: background 0.2s, transform 0.15s;
+    user-select: none;
+  }
+  td:hover {
+    background: #f1f1f1;
+    transform: scale(1.05);
+  }
+  td.win {
+    background: #9effa3 !important;
+    animation: glow 0.8s infinite alternate;
+  }
+  @keyframes glow {
+    from { box-shadow: 0 0 8px #4caf50; }
+    to { box-shadow: 0 0 16px #00e676; }
+  }
+
+  button, input {
+    margin: 10px;
+    padding: 12px 24px;
+    font-size: 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    background: #4caf50;
+    color: #fff;
+    transition: background 0.25s, transform 0.1s;
+  }
+  button:hover {
+    background: #43a047;
+    transform: scale(1.05);
+  }
+  input {
+    border: 2px solid #ccc;
+    color: #333;
+    background: #fff;
+  }
+  #menu, #joinDiv, #gameDiv {
+    margin-top: 40px;
+  }
+  #result {
+    margin-top: 20px;
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #222;
+  }
+  p span {
+    font-weight: bold;
+    color: #333;
+  }
+  @media (max-width: 600px) {
+    td {
+      width: 70px;
+      height: 70px;
+      font-size: 32px;
+    }
+    button, input {
+      font-size: 14px;
+      padding: 10px 18px;
+    }
+  }
 </style>
 </head>
 <body>
@@ -44,7 +130,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-app.js";
 import { getDatabase, ref, set, get, runTransaction, onValue } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-database.js";
 
-// 🔹 Firebase конфиг
 const firebaseConfig = {
   apiKey: "AIzaSyCHGyVydYRtpgCPeT-Ja_7YU4H-a0z_k0I",
   authDomain: "werrr-f91c8.firebaseapp.com",
@@ -58,7 +143,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// DOM
 const menu = document.getElementById('menu');
 const createBtn = document.getElementById('createRoomBtn');
 const joinBtnMenu = document.getElementById('joinRoomBtn');
@@ -66,7 +150,6 @@ const joinDiv = document.getElementById('joinDiv');
 const joinCodeInput = document.getElementById('joinCode');
 const joinBtn = document.getElementById('joinBtn');
 const backBtn = document.getElementById('backBtn');
-
 const gameDiv = document.getElementById('gameDiv');
 const roomCodeDisplay = document.getElementById('roomCodeDisplay');
 const playerSymbolEl = document.getElementById('playerSymbol');
@@ -79,24 +162,24 @@ let playerSymbol = '';
 let playerId = '';
 let processing = false;
 
-function emptyBoard(){ return ["","","","","","","","",""]; }
+function emptyBoard() { return ["","","","","","","","",""]; }
 
-function checkWinner(board){
+function checkWinner(board) {
   const combos = [
     [0,1,2],[3,4,5],[6,7,8],
     [0,3,6],[1,4,7],[2,5,8],
     [0,4,8],[2,4,6]
   ];
-  for(let c of combos){
+  for (let c of combos) {
     const [a,b,c1] = c;
-    if(board[a] && board[a]===board[b] && board[a]===board[c1]){
-      return {winner: board[a], combo:c};
+    if (board[a] && board[a]===board[b] && board[a]===board[c1]) {
+      return {winner: board[a], combo: c};
     }
   }
-  return board.every(cell=>cell)? {winner:'draw'}: null;
+  return board.every(cell=>cell) ? {winner:'draw'} : null;
 }
 
-function showGame(){
+function showGame() {
   menu.style.display='none';
   joinDiv.style.display='none';
   gameDiv.style.display='block';
@@ -105,7 +188,7 @@ function showGame(){
 }
 
 createBtn.addEventListener('click', async ()=>{
-  roomCode = Math.floor(Math.random()*90+10).toString();
+  roomCode = Math.floor(Math.random()*9000+1000).toString();
   playerSymbol = Math.random()<0.5?'X':'O';
   playerId = 'player1';
   const roomRef = ref(db,'rooms/'+roomCode);
@@ -131,20 +214,20 @@ backBtn.addEventListener('click', ()=>{
 });
 
 joinBtn.addEventListener('click', async ()=>{
-  roomCode = joinCodeInput.value;
+  roomCode = joinCodeInput.value.trim();
   const roomRef = ref(db,'rooms/'+roomCode);
   const snap = await get(roomRef);
-  if(!snap.exists()){ alert("Комната не найдена!"); return; }
+  if(!snap.exists()) { alert("Комната не найдена!"); return; }
   const data = snap.val();
-  if(data.players.player2){ alert("Комната заполнена!"); return; }
-  playerSymbol = data.players.player1.symbol==='X'?'O':'X';
+  if(data.players.player2) { alert("Комната заполнена!"); return; }
+  playerSymbol = data.players.player1.symbol==='X' ? 'O' : 'X';
   playerId = 'player2';
   await set(ref(db,'rooms/'+roomCode+'/players/player2'),{symbol:playerSymbol});
   showGame();
   listenGame();
 });
 
-function listenGame(){
+function listenGame() {
   const gameRef = ref(db,'rooms/'+roomCode);
   onValue(gameRef, snapshot=>{
     const data = snapshot.val();
@@ -178,12 +261,10 @@ cells.forEach((cell,index)=>{
     if(processing) return;
     processing=true;
     const gameRef = ref(db,'rooms/'+roomCode);
-    try{
+    try {
       await runTransaction(gameRef,current=>{
         if(!current) return {board: emptyBoard(), turn:'X', winner:'', combo:null, players:{player1:{symbol:'X'},player2:{symbol:'O'}}};
-        if(current.winner) return;
-        if(current.board[index]) return;
-        if(current.turn!==playerSymbol) return;
+        if(current.winner || current.board[index] || current.turn!==playerSymbol) return;
         current.board[index]=playerSymbol;
         const res = checkWinner(current.board);
         if(res){
@@ -193,7 +274,7 @@ cells.forEach((cell,index)=>{
         return current;
       });
     } catch(e){ console.error(e); }
-    finally{ processing=false; }
+    finally { processing=false; }
   });
 });
 </script>
