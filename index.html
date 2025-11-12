@@ -4,9 +4,7 @@
 <meta charset="UTF-8">
 <title>Крестики-нолики Mini App</title>
 <style>
-  * {
-    box-sizing: border-box;
-  }
+  * { box-sizing: border-box; }
   body {
     text-align: center;
     font-family: 'Segoe UI', Arial, sans-serif;
@@ -18,7 +16,6 @@
     margin-top: 40px;
     color: #333;
     font-size: 2.2em;
-    letter-spacing: 1px;
   }
   table {
     border-collapse: collapse;
@@ -52,7 +49,6 @@
     from { box-shadow: 0 0 8px #4caf50; }
     to { box-shadow: 0 0 16px #00e676; }
   }
-
   button, input {
     margin: 10px;
     padding: 12px 24px;
@@ -82,21 +78,14 @@
     font-weight: bold;
     color: #222;
   }
-  p span {
-    font-weight: bold;
-    color: #333;
+  #playAgainBtn {
+    display: none;
+    background: #2196f3;
   }
-  @media (max-width: 600px) {
-    td {
-      width: 70px;
-      height: 70px;
-      font-size: 32px;
-    }
-    button, input {
-      font-size: 14px;
-      padding: 10px 18px;
-    }
+  #playAgainBtn:hover {
+    background: #1976d2;
   }
+  p span { font-weight: bold; color: #333; }
 </style>
 </head>
 <body>
@@ -124,11 +113,12 @@
   </table>
   <p>Ход: <span id="turn"></span></p>
   <p id="result"></p>
+  <button id="playAgainBtn">Играть ещё</button>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-app.js";
-import { getDatabase, ref, set, get, runTransaction, onValue } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-database.js";
+import { getDatabase, ref, set, get, runTransaction, onValue, update } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCHGyVydYRtpgCPeT-Ja_7YU4H-a0z_k0I",
@@ -156,30 +146,31 @@ const playerSymbolEl = document.getElementById('playerSymbol');
 const cells = document.querySelectorAll('#board td');
 const turnDisplay = document.getElementById('turn');
 const resultDisplay = document.getElementById('result');
+const playAgainBtn = document.getElementById('playAgainBtn');
 
 let roomCode = '';
 let playerSymbol = '';
 let playerId = '';
 let processing = false;
 
-function emptyBoard() { return ["","","","","","","","",""]; }
+function emptyBoard(){ return ["","","","","","","","",""]; }
 
-function checkWinner(board) {
+function checkWinner(board){
   const combos = [
     [0,1,2],[3,4,5],[6,7,8],
     [0,3,6],[1,4,7],[2,5,8],
     [0,4,8],[2,4,6]
   ];
-  for (let c of combos) {
+  for(let c of combos){
     const [a,b,c1] = c;
-    if (board[a] && board[a]===board[b] && board[a]===board[c1]) {
-      return {winner: board[a], combo: c};
+    if(board[a] && board[a]===board[b] && board[a]===board[c1]){
+      return {winner: board[a], combo:c};
     }
   }
-  return board.every(cell=>cell) ? {winner:'draw'} : null;
+  return board.every(cell=>cell)? {winner:'draw'}: null;
 }
 
-function showGame() {
+function showGame(){
   menu.style.display='none';
   joinDiv.style.display='none';
   gameDiv.style.display='block';
@@ -217,17 +208,17 @@ joinBtn.addEventListener('click', async ()=>{
   roomCode = joinCodeInput.value.trim();
   const roomRef = ref(db,'rooms/'+roomCode);
   const snap = await get(roomRef);
-  if(!snap.exists()) { alert("Комната не найдена!"); return; }
+  if(!snap.exists()){ alert("Комната не найдена!"); return; }
   const data = snap.val();
-  if(data.players.player2) { alert("Комната заполнена!"); return; }
-  playerSymbol = data.players.player1.symbol==='X' ? 'O' : 'X';
+  if(data.players.player2){ alert("Комната заполнена!"); return; }
+  playerSymbol = data.players.player1.symbol==='X'?'O':'X';
   playerId = 'player2';
   await set(ref(db,'rooms/'+roomCode+'/players/player2'),{symbol:playerSymbol});
   showGame();
   listenGame();
 });
 
-function listenGame() {
+function listenGame(){
   const gameRef = ref(db,'rooms/'+roomCode);
   onValue(gameRef, snapshot=>{
     const data = snapshot.val();
@@ -236,12 +227,16 @@ function listenGame() {
     board.forEach((v,i)=>cells[i].textContent=v);
     turnDisplay.textContent = data.turn;
     cells.forEach(c=>c.classList.remove('win'));
+    playAgainBtn.style.display = 'none';
+
     if(data.winner){
       if(data.winner==='draw') resultDisplay.textContent="Ничья!";
       else resultDisplay.textContent="Победил: "+data.winner;
       if(data.combo) data.combo.forEach(i=>cells[i].classList.add('win'));
       cells.forEach(c=>c.style.pointerEvents='none');
+      playAgainBtn.style.display = 'inline-block';
     } else {
+      resultDisplay.textContent = "";
       if(!data.players.player2){
         turnDisplay.textContent='Ждём второго игрока...';
         cells.forEach(c=>c.style.pointerEvents='none');
@@ -261,10 +256,12 @@ cells.forEach((cell,index)=>{
     if(processing) return;
     processing=true;
     const gameRef = ref(db,'rooms/'+roomCode);
-    try {
+    try{
       await runTransaction(gameRef,current=>{
-        if(!current) return {board: emptyBoard(), turn:'X', winner:'', combo:null, players:{player1:{symbol:'X'},player2:{symbol:'O'}}};
-        if(current.winner || current.board[index] || current.turn!==playerSymbol) return;
+        if(!current) return;
+        if(current.winner) return;
+        if(current.board[index]) return;
+        if(current.turn!==playerSymbol) return;
         current.board[index]=playerSymbol;
         const res = checkWinner(current.board);
         if(res){
@@ -274,7 +271,17 @@ cells.forEach((cell,index)=>{
         return current;
       });
     } catch(e){ console.error(e); }
-    finally { processing=false; }
+    finally{ processing=false; }
+  });
+});
+
+playAgainBtn.addEventListener('click', async ()=>{
+  const gameRef = ref(db,'rooms/'+roomCode);
+  await update(gameRef,{
+    board: emptyBoard(),
+    turn: 'X',
+    winner: '',
+    combo: null
   });
 });
 </script>
