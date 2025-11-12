@@ -9,49 +9,64 @@
     text-align: center;
     font-family: 'Segoe UI', Arial, sans-serif;
     background: linear-gradient(135deg, #e0e0e0, #f8f8f8);
-    margin: 0;
-    padding: 0;
+    margin: 0; padding: 0;
     transition: background 0.3s, color 0.3s;
+    color: #222;
   }
-  body.dark { background: linear-gradient(135deg,#1c1c1c,#333); color:#eee; }
+  body.dark {
+    background: linear-gradient(135deg,#1c1c1c,#333);
+    color: #eee;
+  }
 
-  h1 { margin-top: 40px; color: #333; font-size: 2.2em; }
+  h1 { margin-top: 40px; font-size: 2.2em; }
   body.dark h1 { color: #eee; }
 
-  table { border-collapse: collapse; margin: 30px auto; box-shadow: 0 0 10px rgba(0,0,0,0.15); border-radius: 10px; overflow: hidden; }
+  table { border-collapse: collapse; margin: 30px auto; border-radius: 10px; overflow: hidden; box-shadow: 0 0 10px rgba(0,0,0,0.15); }
   td {
-    border: 2px solid #222; width: 90px; height: 90px; font-size: 42px; font-weight: bold;
-    text-align: center; vertical-align: middle; cursor: pointer; background: #fff;
-    transition: background 0.2s, transform 0.15s; user-select: none;
+    border: 2px solid #222;
+    width: 90px; height: 90px;
+    font-size: 42px; font-weight: bold;
+    text-align: center; vertical-align: middle;
+    cursor: pointer;
+    background: #fff; color: #222;
+    transition: background 0.2s, transform 0.15s, color 0.3s;
+    user-select: none;
   }
   td:hover { background: #f1f1f1; transform: scale(1.05); }
   td.win { background: #9effa3 !important; animation: glow 0.8s infinite alternate; }
   @keyframes glow { from { box-shadow: 0 0 8px #4caf50; } to { box-shadow: 0 0 16px #00e676; } }
 
+  body.dark td { background: #333; color: #fff; border: 2px solid #555; }
+  body.dark td:hover { background: #444; }
+  body.dark td.win { background: #555 !important; box-shadow: 0 0 12px #0f0; }
+
   button, input {
-    margin: 10px; padding: 12px 24px; font-size: 16px; border: none; border-radius: 8px;
-    cursor: pointer; background: #4caf50; color: #fff; transition: background 0.25s, transform 0.1s;
+    margin: 10px; padding: 12px 24px; font-size: 16px;
+    border: none; border-radius: 8px;
+    cursor: pointer; background: #4caf50; color: #fff;
+    transition: background 0.25s, transform 0.1s;
   }
   button:hover:not([disabled]) { background: #43a047; transform: scale(1.03); }
   button[disabled] { opacity: 0.5; cursor: default; transform: none; }
   input { border: 2px solid #ccc; color: #333; background: #fff; }
-  body.dark input { border:2px solid #555; color:#eee; background:#444; }
+  body.dark button, body.dark input { background: #555; color: #fff; border:2px solid #777; }
+  body.dark button:hover:not([disabled]) { background: #777; }
 
   #menu, #joinDiv, #gameDiv { margin-top: 40px; }
   #result { margin-top: 20px; font-size: 1.2em; font-weight: bold; color: #222; }
   body.dark #result { color: #eee; }
+  p span { font-weight: bold; color: #222; }
+  body.dark p span { color: #eee; }
 
   #playAgainBtn { background: #2196f3; }
   #playAgainBtn:hover:not([disabled]) { background: #1976d2; }
 
-  p span { font-weight: bold; color: #333; }
-  body.dark p span { color: #eee; }
-
   #themeToggle {
     position: fixed; top: 10px; right: 10px;
-    background: #ff9800; border-radius: 50%; width: 40px; height: 40px;
-    font-size: 20px; color: #fff; line-height: 40px; cursor: pointer; user-select: none;
-    transition: background 0.3s;
+    background: #ff9800; border-radius: 50%;
+    width: 40px; height: 40px; font-size: 20px;
+    color: #fff; line-height: 40px; cursor: pointer;
+    user-select: none; transition: background 0.3s;
   }
   body.dark #themeToggle { background: #ffc107; }
 
@@ -94,7 +109,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-app.js";
 import { getDatabase, ref, set, get, runTransaction, onValue } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-database.js";
 
-// --- Конфиг Firebase ---
 const firebaseConfig = {
   apiKey: "AIzaSyCHGyVydYRtpgCPeT-Ja_7YU4H-a0z_k0I",
   authDomain: "werrr-f91c8.firebaseapp.com",
@@ -108,7 +122,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// DOM
 const menu = document.getElementById('menu');
 const createBtn = document.getElementById('createRoomBtn');
 const joinBtnMenu = document.getElementById('joinRoomBtn');
@@ -116,7 +129,6 @@ const joinDiv = document.getElementById('joinDiv');
 const joinCodeInput = document.getElementById('joinCode');
 const joinBtn = document.getElementById('joinBtn');
 const backBtn = document.getElementById('backBtn');
-
 const gameDiv = document.getElementById('gameDiv');
 const roomCodeDisplay = document.getElementById('roomCodeDisplay');
 const playerSymbolEl = document.getElementById('playerSymbol');
@@ -125,26 +137,19 @@ const turnDisplay = document.getElementById('turn');
 const resultDisplay = document.getElementById('result');
 const playAgainBtn = document.getElementById('playAgainBtn');
 
-let roomCode = '';
-let playerSymbol = '';
-let playerId = '';
-let processing = false;
+let roomCode = '', playerSymbol = '', playerId = '', processing=false;
 
 function emptyBoard(){ return ["","","","","","","","",""]; }
 
 function checkWinner(board){
-  const combos = [
-    [0,1,2],[3,4,5],[6,7,8],
-    [0,3,6],[1,4,7],[2,5,8],
-    [0,4,8],[2,4,6]
-  ];
+  const combos = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
   for(let c of combos){
     const [a,b,c1] = c;
     if(board[a] && board[a]===board[b] && board[a]===board[c1]){
       return {winner: board[a], combo:c};
     }
   }
-  return board.every(cell=>cell) ? {winner:'draw'} : null;
+  return board.every(cell=>cell)? {winner:'draw'} : null;
 }
 
 function showGame(){
@@ -155,13 +160,11 @@ function showGame(){
   playerSymbolEl.textContent = playerSymbol;
 }
 
-// --- Кнопка темы ---
-const themeToggle = document.getElementById('themeToggle'); 
-themeToggle.addEventListener('click', ()=>{
-  document.body.classList.toggle('dark');
-});
+// Тема
+const themeToggle = document.getElementById('themeToggle');
+themeToggle.addEventListener('click', ()=>{ document.body.classList.toggle('dark'); });
 
-// Остальной твой JS для игры (создание комнаты, присоединение, игра, слушатели)
+// Создать комнату
 createBtn.addEventListener('click', async ()=>{
   roomCode = Math.floor(Math.random()*9000+1000).toString();
   playerSymbol = Math.random()<0.5?'X':'O';
@@ -172,12 +175,13 @@ createBtn.addEventListener('click', async ()=>{
     turn: 'X',
     winner: '',
     combo: null,
-    players: {player1: {symbol:playerSymbol}, player2:null}
+    players: {player1:{symbol:playerSymbol}, player2:null}
   });
   showGame();
   listenGame();
 });
 
+// Присоединиться к комнате
 joinBtnMenu.addEventListener('click', ()=>{ menu.style.display='none'; joinDiv.style.display='block'; });
 backBtn.addEventListener('click', ()=>{ joinDiv.style.display='none'; menu.style.display='block'; });
 joinBtn.addEventListener('click', async ()=>{
@@ -195,18 +199,17 @@ joinBtn.addEventListener('click', async ()=>{
   listenGame();
 });
 
+// Слушатель игры
 function listenGame(){
   const gameRef = ref(db,'rooms/'+roomCode);
   onValue(gameRef, snapshot=>{
-    const data = snapshot.val();
-    if(!data) return;
+    const data = snapshot.val(); if(!data) return;
     const board = data.board || emptyBoard();
     board.forEach((v,i)=>cells[i].textContent=v);
     cells.forEach(c=>c.classList.remove('win'));
     playAgainBtn.disabled = true;
     if(data.winner){
-      if(data.winner==='draw') resultDisplay.textContent="Ничья!";
-      else resultDisplay.textContent="Победил: "+data.winner;
+      resultDisplay.textContent = data.winner==='draw'?"Ничья!":"Победил: "+data.winner;
       if(data.combo) data.combo.forEach(i=>cells[i].classList.add('win'));
       cells.forEach(c=>c.style.pointerEvents='none');
       playAgainBtn.disabled = false;
@@ -226,6 +229,7 @@ function listenGame(){
   });
 }
 
+// Клик по клетке
 cells.forEach((cell,index)=>{
   cell.addEventListener('click', async ()=>{
     if(processing) return;
@@ -233,33 +237,27 @@ cells.forEach((cell,index)=>{
     const gameRef = ref(db,'rooms/'+roomCode);
     try{
       await runTransaction(gameRef,current=>{
-        if(!current) return;
-        if(current.winner) return;
-        if(current.board[index]) return;
-        if(current.turn!==playerSymbol) return;
+        if(!current || current.winner || current.board[index] || current.turn!==playerSymbol) return;
         current.board[index]=playerSymbol;
         const res = checkWinner(current.board);
-        if(res){
-          current.winner=res.winner;
-          current.combo=res.combo||null;
-        } else {
-          current.turn = playerSymbol==='X'?'O':'X';
-        }
+        if(res){ current.winner=res.winner; current.combo=res.combo||null; }
+        else { current.turn = playerSymbol==='X'?'O':'X'; }
         return current;
       });
-    } catch(e){ console.error("Ошибка транзакции:", e); }
+    } catch(e){ console.error(e); }
     finally{ processing=false; }
   });
 });
 
+// Играть ещё
 playAgainBtn.addEventListener('click', async ()=>{
   if(!roomCode){ alert("Комната не выбрана"); return; }
-  playAgainBtn.disabled = true;
+  playAgainBtn.disabled=true;
   const roomRef = ref(db,'rooms/'+roomCode);
   try{
     const snap = await get(roomRef);
-    const data = snap.exists() ? snap.val() : null;
-    const players = data && data.players ? data.players : { player1:null, player2:null };
+    const data = snap.exists()?snap.val():null;
+    const players = data && data.players ? data.players : {player1:null, player2:null};
     await set(roomRef,{
       board: emptyBoard(),
       turn: 'X',
@@ -267,7 +265,7 @@ playAgainBtn.addEventListener('click', async ()=>{
       combo: null,
       players: players
     });
-  } catch(e){ console.error("Ошибка при перезапуске игры:", e); alert("Не удалось перезапустить игру."); }
+  } catch(e){ console.error(e); alert("Не удалось перезапустить игру."); }
 });
 </script>
 
