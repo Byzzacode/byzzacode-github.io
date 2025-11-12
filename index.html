@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -27,7 +28,7 @@
     flex-direction: column;
     align-items: center;
     gap: 15px;
-	margin-top: 60px;
+    margin-top: 60px;
   }
 
   table { border-collapse: collapse; margin: 30px auto; box-shadow: 0 0 10px rgba(0,0,0,0.15); border-radius: 10px; overflow: hidden; }
@@ -69,9 +70,57 @@
   }
   body.dark #themeToggle { background: #ffc107; }
 
+  /* Мобильная адаптация */
   @media (max-width: 600px) {
-    td { width: 70px; height: 70px; font-size: 32px; }
-    button, input { font-size: 14px; padding: 10px 18px; }
+    #menu, #joinDiv, #gameDiv {
+      max-width: 95%;
+      margin-top: 30px;
+      gap: 10px;
+    }
+
+    td {
+      width: 60px;
+      height: 60px;
+      font-size: 28px;
+    }
+
+    button, input {
+      font-size: 14px;
+      padding: 10px 16px;
+    }
+
+    #board {
+      width: 100%;
+      max-width: 280px;
+    }
+
+    #result { font-size: 1em; }
+
+    #themeToggle {
+      width: 35px;
+      height: 35px;
+      font-size: 18px;
+      line-height: 35px;
+      top: 5px;
+      right: 5px;
+    }
+  }
+
+  @media (max-width: 400px) {
+    td {
+      width: 50px;
+      height: 50px;
+      font-size: 24px;
+    }
+
+    button, input {
+      font-size: 12px;
+      padding: 8px 12px;
+    }
+
+    #board { max-width: 220px; }
+
+    h1 { font-size: 1.8em; margin-top: 10px; }
   }
 </style>
 </head>
