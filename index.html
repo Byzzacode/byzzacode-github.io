@@ -11,8 +11,13 @@
     background: linear-gradient(135deg, #e0e0e0, #f8f8f8);
     margin: 0;
     padding: 0;
+    transition: background 0.3s, color 0.3s;
   }
+  body.dark { background: linear-gradient(135deg,#1c1c1c,#333); color:#eee; }
+
   h1 { margin-top: 40px; color: #333; font-size: 2.2em; }
+  body.dark h1 { color: #eee; }
+
   table { border-collapse: collapse; margin: 30px auto; box-shadow: 0 0 10px rgba(0,0,0,0.15); border-radius: 10px; overflow: hidden; }
   td {
     border: 2px solid #222; width: 90px; height: 90px; font-size: 42px; font-weight: bold;
@@ -30,11 +35,26 @@
   button:hover:not([disabled]) { background: #43a047; transform: scale(1.03); }
   button[disabled] { opacity: 0.5; cursor: default; transform: none; }
   input { border: 2px solid #ccc; color: #333; background: #fff; }
+  body.dark input { border:2px solid #555; color:#eee; background:#444; }
+
   #menu, #joinDiv, #gameDiv { margin-top: 40px; }
   #result { margin-top: 20px; font-size: 1.2em; font-weight: bold; color: #222; }
+  body.dark #result { color: #eee; }
+
   #playAgainBtn { background: #2196f3; }
   #playAgainBtn:hover:not([disabled]) { background: #1976d2; }
+
   p span { font-weight: bold; color: #333; }
+  body.dark p span { color: #eee; }
+
+  #themeToggle {
+    position: fixed; top: 10px; right: 10px;
+    background: #ff9800; border-radius: 50%; width: 40px; height: 40px;
+    font-size: 20px; color: #fff; line-height: 40px; cursor: pointer; user-select: none;
+    transition: background 0.3s;
+  }
+  body.dark #themeToggle { background: #ffc107; }
+
   @media (max-width: 600px) {
     td { width: 70px; height: 70px; font-size: 32px; }
     button, input { font-size: 14px; padding: 10px 18px; }
@@ -44,6 +64,7 @@
 <body>
 
 <h1>Крестики-нолики</h1>
+<div id="themeToggle">🌓</div>
 
 <div id="menu">
   <button id="createRoomBtn">Создать комнату</button>
@@ -66,7 +87,6 @@
   </table>
   <p>Ход: <span id="turn"></span></p>
   <p id="result"></p>
-  <!-- Кнопка всегда в DOM, но изначально disabled -->
   <button id="playAgainBtn" disabled>Играть ещё</button>
 </div>
 
@@ -74,7 +94,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-app.js";
 import { getDatabase, ref, set, get, runTransaction, onValue } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-database.js";
 
-// --- Конфиг Firebase (оставил твой) ---
+// --- Конфиг Firebase ---
 const firebaseConfig = {
   apiKey: "AIzaSyCHGyVydYRtpgCPeT-Ja_7YU4H-a0z_k0I",
   authDomain: "werrr-f91c8.firebaseapp.com",
@@ -133,9 +153,15 @@ function showGame(){
   gameDiv.style.display='block';
   roomCodeDisplay.textContent = roomCode;
   playerSymbolEl.textContent = playerSymbol;
-  console.log("Показать игру. Комната:", roomCode, "Символ:", playerSymbol);
 }
 
+// --- Кнопка темы ---
+const themeToggle = document.getElementById('themeToggle'); 
+themeToggle.addEventListener('click', ()=>{
+  document.body.classList.toggle('dark');
+});
+
+// Остальной твой JS для игры (создание комнаты, присоединение, игра, слушатели)
 createBtn.addEventListener('click', async ()=>{
   roomCode = Math.floor(Math.random()*9000+1000).toString();
   playerSymbol = Math.random()<0.5?'X':'O';
@@ -153,9 +179,7 @@ createBtn.addEventListener('click', async ()=>{
 });
 
 joinBtnMenu.addEventListener('click', ()=>{ menu.style.display='none'; joinDiv.style.display='block'; });
-
 backBtn.addEventListener('click', ()=>{ joinDiv.style.display='none'; menu.style.display='block'; });
-
 joinBtn.addEventListener('click', async ()=>{
   roomCode = joinCodeInput.value.trim();
   if(!roomCode){ alert("Введи код комнаты"); return; }
@@ -175,22 +199,17 @@ function listenGame(){
   const gameRef = ref(db,'rooms/'+roomCode);
   onValue(gameRef, snapshot=>{
     const data = snapshot.val();
-    if(!data){ console.warn("Данных нет для комнаты", roomCode); return; }
-    console.log("Обновление комнаты:", roomCode, data);
+    if(!data) return;
     const board = data.board || emptyBoard();
     board.forEach((v,i)=>cells[i].textContent=v);
     cells.forEach(c=>c.classList.remove('win'));
-    // По умолчанию отключаем кнопку
     playAgainBtn.disabled = true;
     if(data.winner){
-      // Показываем результат
       if(data.winner==='draw') resultDisplay.textContent="Ничья!";
       else resultDisplay.textContent="Победил: "+data.winner;
       if(data.combo) data.combo.forEach(i=>cells[i].classList.add('win'));
       cells.forEach(c=>c.style.pointerEvents='none');
-      // Включаем кнопку играть ещё для любой стороны
       playAgainBtn.disabled = false;
-      console.log("Игра завершена, кнопка 'Играть ещё' включена");
     } else {
       resultDisplay.textContent = "";
       if(!data.players || !data.players.player2){
@@ -233,18 +252,14 @@ cells.forEach((cell,index)=>{
   });
 });
 
-// Нажатие "Играть ещё" — полностью перезаписываем ключ комнаты (board/turn/winner/combo),
-// при этом сохраняем players, чтобы игроки остались в комнате.
 playAgainBtn.addEventListener('click', async ()=>{
   if(!roomCode){ alert("Комната не выбрана"); return; }
-  playAgainBtn.disabled = true; // защита от множественных нажатий
+  playAgainBtn.disabled = true;
   const roomRef = ref(db,'rooms/'+roomCode);
   try{
-    // Сначала получим players, чтобы не потерять их
     const snap = await get(roomRef);
     const data = snap.exists() ? snap.val() : null;
     const players = data && data.players ? data.players : { player1:null, player2:null };
-    // Перезаписываем основное состояние (не трогаем players)
     await set(roomRef,{
       board: emptyBoard(),
       turn: 'X',
@@ -252,14 +267,7 @@ playAgainBtn.addEventListener('click', async ()=>{
       combo: null,
       players: players
     });
-    console.log("Комната сброшена для новой партии:", roomCode);
-  } catch(e){
-    console.error("Ошибка при перезапуске игры:", e);
-    alert("Не удалось перезапустить игру. Посмотри консоль.");
-  } finally {
-    // Временно оставляем кнопку отключённой — слушатель onValue включит её при завершении партии
-    playAgainBtn.disabled = true;
-  }
+  } catch(e){ console.error("Ошибка при перезапуске игры:", e); alert("Не удалось перезапустить игру."); }
 });
 </script>
 
