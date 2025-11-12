@@ -12,80 +12,33 @@
     margin: 0;
     padding: 0;
   }
-  h1 {
-    margin-top: 40px;
-    color: #333;
-    font-size: 2.2em;
-  }
-  table {
-    border-collapse: collapse;
-    margin: 30px auto;
-    box-shadow: 0 0 10px rgba(0,0,0,0.15);
-    border-radius: 10px;
-    overflow: hidden;
-  }
+  h1 { margin-top: 40px; color: #333; font-size: 2.2em; }
+  table { border-collapse: collapse; margin: 30px auto; box-shadow: 0 0 10px rgba(0,0,0,0.15); border-radius: 10px; overflow: hidden; }
   td {
-    border: 2px solid #222;
-    width: 90px;
-    height: 90px;
-    font-size: 42px;
-    font-weight: bold;
-    text-align: center;
-    vertical-align: middle;
-    cursor: pointer;
-    background: #fff;
-    transition: background 0.2s, transform 0.15s;
-    user-select: none;
+    border: 2px solid #222; width: 90px; height: 90px; font-size: 42px; font-weight: bold;
+    text-align: center; vertical-align: middle; cursor: pointer; background: #fff;
+    transition: background 0.2s, transform 0.15s; user-select: none;
   }
-  td:hover {
-    background: #f1f1f1;
-    transform: scale(1.05);
-  }
-  td.win {
-    background: #9effa3 !important;
-    animation: glow 0.8s infinite alternate;
-  }
-  @keyframes glow {
-    from { box-shadow: 0 0 8px #4caf50; }
-    to { box-shadow: 0 0 16px #00e676; }
-  }
+  td:hover { background: #f1f1f1; transform: scale(1.05); }
+  td.win { background: #9effa3 !important; animation: glow 0.8s infinite alternate; }
+  @keyframes glow { from { box-shadow: 0 0 8px #4caf50; } to { box-shadow: 0 0 16px #00e676; } }
+
   button, input {
-    margin: 10px;
-    padding: 12px 24px;
-    font-size: 16px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    background: #4caf50;
-    color: #fff;
-    transition: background 0.25s, transform 0.1s;
+    margin: 10px; padding: 12px 24px; font-size: 16px; border: none; border-radius: 8px;
+    cursor: pointer; background: #4caf50; color: #fff; transition: background 0.25s, transform 0.1s;
   }
-  button:hover {
-    background: #43a047;
-    transform: scale(1.05);
-  }
-  input {
-    border: 2px solid #ccc;
-    color: #333;
-    background: #fff;
-  }
-  #menu, #joinDiv, #gameDiv {
-    margin-top: 40px;
-  }
-  #result {
-    margin-top: 20px;
-    font-size: 1.2em;
-    font-weight: bold;
-    color: #222;
-  }
-  #playAgainBtn {
-    display: none;
-    background: #2196f3;
-  }
-  #playAgainBtn:hover {
-    background: #1976d2;
-  }
+  button:hover:not([disabled]) { background: #43a047; transform: scale(1.03); }
+  button[disabled] { opacity: 0.5; cursor: default; transform: none; }
+  input { border: 2px solid #ccc; color: #333; background: #fff; }
+  #menu, #joinDiv, #gameDiv { margin-top: 40px; }
+  #result { margin-top: 20px; font-size: 1.2em; font-weight: bold; color: #222; }
+  #playAgainBtn { background: #2196f3; }
+  #playAgainBtn:hover:not([disabled]) { background: #1976d2; }
   p span { font-weight: bold; color: #333; }
+  @media (max-width: 600px) {
+    td { width: 70px; height: 70px; font-size: 32px; }
+    button, input { font-size: 14px; padding: 10px 18px; }
+  }
 </style>
 </head>
 <body>
@@ -113,13 +66,15 @@
   </table>
   <p>Ход: <span id="turn"></span></p>
   <p id="result"></p>
-  <button id="playAgainBtn">Играть ещё</button>
+  <!-- Кнопка всегда в DOM, но изначально disabled -->
+  <button id="playAgainBtn" disabled>Играть ещё</button>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-app.js";
-import { getDatabase, ref, set, get, runTransaction, onValue, update } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-database.js";
+import { getDatabase, ref, set, get, runTransaction, onValue } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-database.js";
 
+// --- Конфиг Firebase (оставил твой) ---
 const firebaseConfig = {
   apiKey: "AIzaSyCHGyVydYRtpgCPeT-Ja_7YU4H-a0z_k0I",
   authDomain: "werrr-f91c8.firebaseapp.com",
@@ -133,6 +88,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
+// DOM
 const menu = document.getElementById('menu');
 const createBtn = document.getElementById('createRoomBtn');
 const joinBtnMenu = document.getElementById('joinRoomBtn');
@@ -140,6 +96,7 @@ const joinDiv = document.getElementById('joinDiv');
 const joinCodeInput = document.getElementById('joinCode');
 const joinBtn = document.getElementById('joinBtn');
 const backBtn = document.getElementById('backBtn');
+
 const gameDiv = document.getElementById('gameDiv');
 const roomCodeDisplay = document.getElementById('roomCodeDisplay');
 const playerSymbolEl = document.getElementById('playerSymbol');
@@ -167,7 +124,7 @@ function checkWinner(board){
       return {winner: board[a], combo:c};
     }
   }
-  return board.every(cell=>cell)? {winner:'draw'}: null;
+  return board.every(cell=>cell) ? {winner:'draw'} : null;
 }
 
 function showGame(){
@@ -176,6 +133,7 @@ function showGame(){
   gameDiv.style.display='block';
   roomCodeDisplay.textContent = roomCode;
   playerSymbolEl.textContent = playerSymbol;
+  console.log("Показать игру. Комната:", roomCode, "Символ:", playerSymbol);
 }
 
 createBtn.addEventListener('click', async ()=>{
@@ -194,23 +152,18 @@ createBtn.addEventListener('click', async ()=>{
   listenGame();
 });
 
-joinBtnMenu.addEventListener('click', ()=>{
-  menu.style.display='none';
-  joinDiv.style.display='block';
-});
+joinBtnMenu.addEventListener('click', ()=>{ menu.style.display='none'; joinDiv.style.display='block'; });
 
-backBtn.addEventListener('click', ()=>{
-  joinDiv.style.display='none';
-  menu.style.display='block';
-});
+backBtn.addEventListener('click', ()=>{ joinDiv.style.display='none'; menu.style.display='block'; });
 
 joinBtn.addEventListener('click', async ()=>{
   roomCode = joinCodeInput.value.trim();
+  if(!roomCode){ alert("Введи код комнаты"); return; }
   const roomRef = ref(db,'rooms/'+roomCode);
   const snap = await get(roomRef);
   if(!snap.exists()){ alert("Комната не найдена!"); return; }
   const data = snap.val();
-  if(data.players.player2){ alert("Комната заполнена!"); return; }
+  if(data.players && data.players.player2){ alert("Комната заполнена!"); return; }
   playerSymbol = data.players.player1.symbol==='X'?'O':'X';
   playerId = 'player2';
   await set(ref(db,'rooms/'+roomCode+'/players/player2'),{symbol:playerSymbol});
@@ -222,22 +175,25 @@ function listenGame(){
   const gameRef = ref(db,'rooms/'+roomCode);
   onValue(gameRef, snapshot=>{
     const data = snapshot.val();
-    if(!data) return;
+    if(!data){ console.warn("Данных нет для комнаты", roomCode); return; }
+    console.log("Обновление комнаты:", roomCode, data);
     const board = data.board || emptyBoard();
     board.forEach((v,i)=>cells[i].textContent=v);
-    turnDisplay.textContent = data.turn;
     cells.forEach(c=>c.classList.remove('win'));
-    playAgainBtn.style.display = 'none';
-
+    // По умолчанию отключаем кнопку
+    playAgainBtn.disabled = true;
     if(data.winner){
+      // Показываем результат
       if(data.winner==='draw') resultDisplay.textContent="Ничья!";
       else resultDisplay.textContent="Победил: "+data.winner;
       if(data.combo) data.combo.forEach(i=>cells[i].classList.add('win'));
       cells.forEach(c=>c.style.pointerEvents='none');
-      playAgainBtn.style.display = 'inline-block';
+      // Включаем кнопку играть ещё для любой стороны
+      playAgainBtn.disabled = false;
+      console.log("Игра завершена, кнопка 'Играть ещё' включена");
     } else {
       resultDisplay.textContent = "";
-      if(!data.players.player2){
+      if(!data.players || !data.players.player2){
         turnDisplay.textContent='Ждём второго игрока...';
         cells.forEach(c=>c.style.pointerEvents='none');
       } else if(data.turn!==playerSymbol){
@@ -267,22 +223,43 @@ cells.forEach((cell,index)=>{
         if(res){
           current.winner=res.winner;
           current.combo=res.combo||null;
-        } else current.turn = playerSymbol==='X'?'O':'X';
+        } else {
+          current.turn = playerSymbol==='X'?'O':'X';
+        }
         return current;
       });
-    } catch(e){ console.error(e); }
+    } catch(e){ console.error("Ошибка транзакции:", e); }
     finally{ processing=false; }
   });
 });
 
+// Нажатие "Играть ещё" — полностью перезаписываем ключ комнаты (board/turn/winner/combo),
+// при этом сохраняем players, чтобы игроки остались в комнате.
 playAgainBtn.addEventListener('click', async ()=>{
-  const gameRef = ref(db,'rooms/'+roomCode);
-  await update(gameRef,{
-    board: emptyBoard(),
-    turn: 'X',
-    winner: '',
-    combo: null
-  });
+  if(!roomCode){ alert("Комната не выбрана"); return; }
+  playAgainBtn.disabled = true; // защита от множественных нажатий
+  const roomRef = ref(db,'rooms/'+roomCode);
+  try{
+    // Сначала получим players, чтобы не потерять их
+    const snap = await get(roomRef);
+    const data = snap.exists() ? snap.val() : null;
+    const players = data && data.players ? data.players : { player1:null, player2:null };
+    // Перезаписываем основное состояние (не трогаем players)
+    await set(roomRef,{
+      board: emptyBoard(),
+      turn: 'X',
+      winner: '',
+      combo: null,
+      players: players
+    });
+    console.log("Комната сброшена для новой партии:", roomCode);
+  } catch(e){
+    console.error("Ошибка при перезапуске игры:", e);
+    alert("Не удалось перезапустить игру. Посмотри консоль.");
+  } finally {
+    // Временно оставляем кнопку отключённой — слушатель onValue включит её при завершении партии
+    playAgainBtn.disabled = true;
+  }
 });
 </script>
 
