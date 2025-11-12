@@ -2,79 +2,76 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>Крестики-нолики</title>
+<title>Крестики-нолики Mini App</title>
 <style>
   * { box-sizing: border-box; margin:0; padding:0; }
   body {
+    text-align: center;
     font-family: 'Segoe UI', Arial, sans-serif;
     background: linear-gradient(135deg, #e0e0e0, #f8f8f8);
-    color: #222;
-    text-align: center;
     transition: background 0.3s, color 0.3s;
-    padding-top: 50px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
   }
   body.dark { background: linear-gradient(135deg,#1c1c1c,#333); color:#eee; }
 
-  h1 { margin-bottom: 30px; }
-  body.dark h1 { color: #fff; }
-
-  table {
-    border-collapse: collapse;
-    margin: 20px auto;
-    border-radius: 10px;
-    overflow: hidden;
-  }
-  td {
-    width: 90px; height: 90px;
-    border: 2px solid #222;
-    font-size: 42px; font-weight: bold;
-    text-align: center; vertical-align: middle;
-    cursor: pointer; background: #fff;
-    transition: background 0.2s, transform 0.15s;
-    user-select: none;
-  }
-  body.dark td { background: #555; color: #fff; border:2px solid #888; }
-  td:hover { background: #f1f1f1; transform: scale(1.05); }
-  td.win { background: #9effa3 !important; animation: glow 0.8s infinite alternate; }
-  @keyframes glow { from { box-shadow: 0 0 8px #4caf50; } to { box-shadow: 0 0 16px #00e676; } }
+  h1 { margin-top: 20px; color: #333; font-size: 2.2em; }
+  body.dark h1 { color: #eee; }
 
   #menu, #joinDiv, #gameDiv {
+    max-width: 400px;
+    width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 15px;
     align-items: center;
-    margin-top: 50px;
+    gap: 15px;
+	margin-top: 60px;
   }
 
-  button, input {
-    padding: 12px 24px;
-    font-size: 16px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
+  table { border-collapse: collapse; margin: 30px auto; box-shadow: 0 0 10px rgba(0,0,0,0.15); border-radius: 10px; overflow: hidden; }
+  td {
+    border: 2px solid #222; width: 90px; height: 90px; font-size: 42px; font-weight: bold;
+    text-align: center; vertical-align: middle; cursor: pointer; background: #fff; color:#000;
+    transition: background 0.2s, transform 0.15s, color 0.2s; user-select: none;
   }
-  button { background: #4caf50; color:#fff; }
-  button:hover:not([disabled]) { background: #43a047; transform: scale(1.05); }
-  button[disabled] { opacity:0.5; cursor: default; }
-  input { border:2px solid #ccc; background:#fff; color:#333; }
-  body.dark input { border:2px solid #888; background:#444; color:#fff; }
+  td:hover { background: #f1f1f1; transform: scale(1.05); }
+  td.win { background: #9effa3 !important; animation: glow 0.8s infinite alternate; color:#000; }
+  body.dark td { background:#222; color:#fff; border-color:#555; }
+  body.dark td:hover { background:#333; }
+  @keyframes glow { from { box-shadow: 0 0 8px #4caf50; } to { box-shadow: 0 0 16px #00e676; } }
+
+  button, input {
+    margin: 0; padding: 12px 24px; font-size: 16px; border: none; border-radius: 8px;
+    cursor: pointer; background: #4caf50; color: #fff; transition: background 0.25s, transform 0.1s;
+    width: 100%;
+  }
+  button:hover:not([disabled]) { background: #43a047; transform: scale(1.03); }
+  button[disabled] { opacity: 0.5; cursor: default; transform: none; }
+  input { border: 2px solid #ccc; color: #333; background: #fff; }
+  body.dark input { border:2px solid #555; color:#eee; background:#444; }
+
+  #result { margin-top: 20px; font-size: 1.2em; font-weight: bold; color: #222; }
+  body.dark #result { color: #eee; }
 
   #playAgainBtn { background: #2196f3; }
   #playAgainBtn:hover:not([disabled]) { background: #1976d2; }
 
+  p span { font-weight: bold; color: #333; }
+  body.dark p span { color: #eee; }
+
   #themeToggle {
     position: fixed; top: 10px; right: 10px;
-    width: 40px; height:40px;
-    background: #ff9800; color:#fff;
-    font-size:20px; line-height:40px;
-    border-radius:50%; cursor:pointer;
+    background: #ff9800; border-radius: 50%; width: 40px; height: 40px;
+    font-size: 20px; color: #fff; line-height: 40px; cursor: pointer; user-select: none;
+    transition: background 0.3s;
   }
-  body.dark #themeToggle { background:#ffc107; }
+  body.dark #themeToggle { background: #ffc107; }
 
-  @media (max-width:600px) {
-    td { width:70px; height:70px; font-size:32px; }
-    button, input { font-size:14px; padding:10px 18px; }
+  @media (max-width: 600px) {
+    td { width: 70px; height: 70px; font-size: 32px; }
+    button, input { font-size: 14px; padding: 10px 18px; }
   }
 </style>
 </head>
@@ -84,10 +81,19 @@
 <div id="themeToggle">🌓</div>
 
 <div id="menu">
-  <button id="singleDeviceBtn">Играть на одном устройстве</button>
+  <button id="createRoomBtn">Создать комнату</button>
+  <button id="joinRoomBtn">Присоединиться к комнате</button>
+  <button id="oneDeviceBtn">Играть на одном устройстве</button>
+</div>
+
+<div id="joinDiv" style="display:none;">
+  <input type="text" id="joinCode" placeholder="Введите код комнаты">
+  <button id="joinBtn">Играть</button>
+  <button id="backBtn">Назад</button>
 </div>
 
 <div id="gameDiv" style="display:none;">
+  <p>Комната: <span id="roomCodeDisplay"></span></p>
   <p>Вы: <span id="playerSymbol"></span></p>
   <table id="board">
     <tr><td></td><td></td><td></td></tr>
@@ -99,76 +105,118 @@
   <button id="playAgainBtn" disabled>Играть ещё</button>
 </div>
 
-<script>
-const themeToggle = document.getElementById('themeToggle');
-themeToggle.addEventListener('click', ()=>document.body.classList.toggle('dark'));
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-app.js";
+import { getDatabase, ref, set, get, runTransaction, onValue } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCHGyVydYRtpgCPeT-Ja_7YU4H-a0z_k0I",
+  authDomain: "werrr-f91c8.firebaseapp.com",
+  databaseURL: "https://werrr-f91c8-default-rtdb.firebaseio.com",
+  projectId: "werrr-f91c8",
+  storageBucket: "werrr-f91c8.appspot.com",
+  messagingSenderId: "32501241615",
+  appId: "1:32501241615:web:d09c098d13da7ea7a5107a"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
 const menu = document.getElementById('menu');
-const singleDeviceBtn = document.getElementById('singleDeviceBtn');
+const createBtn = document.getElementById('createRoomBtn');
+const joinBtnMenu = document.getElementById('joinRoomBtn');
+const oneDeviceBtn = document.getElementById('oneDeviceBtn');
+const joinDiv = document.getElementById('joinDiv');
+const joinCodeInput = document.getElementById('joinCode');
+const joinBtn = document.getElementById('joinBtn');
+const backBtn = document.getElementById('backBtn');
+
 const gameDiv = document.getElementById('gameDiv');
+const roomCodeDisplay = document.getElementById('roomCodeDisplay');
+const playerSymbolEl = document.getElementById('playerSymbol');
 const cells = document.querySelectorAll('#board td');
 const turnDisplay = document.getElementById('turn');
 const resultDisplay = document.getElementById('result');
 const playAgainBtn = document.getElementById('playAgainBtn');
-const playerSymbolEl = document.getElementById('playerSymbol');
 
-let board = ["","","","","","","","",""];
-let currentPlayer = "X";
-let gameOver = false;
+let roomCode='', playerSymbol='', playerId='', processing=false, oneDeviceMode=false;
 
-function checkWinner(){
-  const combos = [
-    [0,1,2],[3,4,5],[6,7,8],
-    [0,3,6],[1,4,7],[2,5,8],
-    [0,4,8],[2,4,6]
-  ];
-  for(let c of combos){
-    const [a,b,c1]=c;
-    if(board[a] && board[a]===board[b] && board[a]===board[c1]){
-      return {winner:board[a], combo:c};
-    }
-  }
-  if(board.every(cell=>cell)) return {winner:"draw"};
-  return null;
-}
+function emptyBoard(){ return ["","","","","","","","",""]; }
+function checkWinner(board){ const combos=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]; for(let c of combos){ const [a,b,c1]=c; if(board[a]&&board[a]===board[b]&&board[a]===board[c1]) return {winner: board[a], combo:c}; } return board.every(cell=>cell)?{winner:'draw'}:null; }
+function showGame(){ menu.style.display='none'; joinDiv.style.display='none'; gameDiv.style.display='block'; playerSymbolEl.textContent=playerSymbol; }
 
-function startGame(){
+document.getElementById('themeToggle').addEventListener('click', ()=>{ document.body.classList.toggle('dark'); });
+
+createBtn.addEventListener('click', async ()=>{
+  roomCode = Math.floor(Math.random()*9000+1000).toString();
+  playerSymbol = Math.random()<0.5?'X':'O';
+  playerId='player1';
+  const roomRef = ref(db,'rooms/'+roomCode);
+  await set(roomRef,{ board: emptyBoard(), turn: 'X', winner: '', combo:null, players:{player1:{symbol:playerSymbol},player2:null} });
+  oneDeviceMode=false;
+  showGame(); listenGame();
+});
+
+joinBtnMenu.addEventListener('click', ()=>{ menu.style.display='none'; joinDiv.style.display='block'; });
+backBtn.addEventListener('click', ()=>{ joinDiv.style.display='none'; menu.style.display='flex'; });
+
+joinBtn.addEventListener('click', async ()=>{
+  roomCode = joinCodeInput.value.trim();
+  if(!roomCode){ alert("Введи код комнаты"); return; }
+  const roomRef = ref(db,'rooms/'+roomCode);
+  const snap = await get(roomRef);
+  if(!snap.exists()){ alert("Комната не найдена!"); return; }
+  const data = snap.val();
+  if(data.players && data.players.player2){ alert("Комната заполнена!"); return; }
+  playerSymbol = data.players.player1.symbol==='X'?'O':'X';
+  playerId = 'player2';
+  await set(ref(db,'rooms/'+roomCode+'/players/player2'),{symbol:playerSymbol});
+  oneDeviceMode=false;
+  showGame(); listenGame();
+});
+
+oneDeviceBtn.addEventListener('click', ()=>{
+  oneDeviceMode=true;
   menu.style.display='none';
-  gameDiv.style.display='flex';
-  playerSymbolEl.textContent = "X";
-  currentPlayer = "X";
-  board = ["","","","","","","","",""];
-  gameOver=false;
-  cells.forEach(td=>{td.textContent=""; td.classList.remove("win"); td.style.pointerEvents="auto";});
-  turnDisplay.textContent = "Ход игрока X";
-  resultDisplay.textContent = "";
-  playAgainBtn.disabled=false;
-}
+  gameDiv.style.display='block';
+  playerSymbol='X';
+  playerSymbolEl.textContent='X';
+  cells.forEach(c=>c.textContent='');
+  turnDisplay.textContent='Ваш ход';
+  playAgainBtn.disabled=true;
+});
+
+function listenGame(){ if(oneDeviceMode) return; const gameRef = ref(db,'rooms/'+roomCode); onValue(gameRef,snapshot=>{ const data = snapshot.val(); if(!data) return; const board = data.board||emptyBoard(); board.forEach((v,i)=>cells[i].textContent=v); cells.forEach(c=>c.classList.remove('win')); playAgainBtn.disabled=true; if(data.winner){ if(data.winner==='draw') resultDisplay.textContent="Ничья!"; else resultDisplay.textContent="Победил: "+data.winner; if(data.combo) data.combo.forEach(i=>cells[i].classList.add('win')); cells.forEach(c=>c.style.pointerEvents='none'); playAgainBtn.disabled=false; } else { resultDisplay.textContent=""; if(!data.players||!data.players.player2){ turnDisplay.textContent='Ждём второго игрока...'; cells.forEach(c=>c.style.pointerEvents='none'); } else if(data.turn!==playerSymbol){ turnDisplay.textContent='Ход соперника...'; cells.forEach(c=>c.style.pointerEvents='none'); } else{ turnDisplay.textContent='Ваш ход'; cells.forEach(c=>c.style.pointerEvents='auto'); } } }); }
 
 cells.forEach((cell,index)=>{
   cell.addEventListener('click', ()=>{
-    if(gameOver || board[index]) return;
-    board[index]=currentPlayer;
-    cell.textContent=currentPlayer;
-    const res = checkWinner();
-    if(res){
-      if(res.winner==="draw"){
-        resultDisplay.textContent="Ничья!";
-      }else{
-        resultDisplay.textContent="Победил: "+res.winner;
-        if(res.combo) res.combo.forEach(i=>cells[i].classList.add("win"));
-      }
-      gameOver=true;
-      cells.forEach(c=>c.style.pointerEvents="none");
+    if(processing) return;
+    processing=true;
+    if(oneDeviceMode){
+      if(cell.textContent) return;
+      cell.textContent=playerSymbol;
+      const res=checkWinner(Array.from(cells).map(c=>c.textContent));
+      if(res){ if(res.winner==='draw') resultDisplay.textContent="Ничья!"; else resultDisplay.textContent="Победил: "+res.winner; if(res.combo) res.combo.forEach(i=>cells[i].classList.add('win')); cells.forEach(c=>c.style.pointerEvents='none'); playAgainBtn.disabled=false; } 
+      else { playerSymbol=playerSymbol==='X'?'O':'X'; turnDisplay.textContent='Ход: '+playerSymbol; }
+      processing=false;
       return;
     }
-    currentPlayer = currentPlayer==="X"?"O":"X";
-    turnDisplay.textContent="Ход игрока "+currentPlayer;
+    const gameRef = ref(db,'rooms/'+roomCode);
+    runTransaction(gameRef,current=>{ if(!current) return; if(current.winner) return; if(current.board[index]) return; if(current.turn!==playerSymbol) return; current.board[index]=playerSymbol; const res=checkWinner(current.board); if(res){ current.winner=res.winner; current.combo=res.combo||null; } else{ current.turn=playerSymbol==='X'?'O':'X'; } return current; }).finally(()=>{ processing=false; });
   });
 });
 
-playAgainBtn.addEventListener('click', startGame);
-singleDeviceBtn.addEventListener('click', startGame);
+playAgainBtn.addEventListener('click', ()=>{
+  cells.forEach(c=>{ c.textContent=''; c.classList.remove('win'); c.style.pointerEvents='auto'; });
+  turnDisplay.textContent='Ваш ход';
+  playerSymbol='X';
+  playerSymbolEl.textContent='X';
+  playAgainBtn.disabled=true;
+  if(!oneDeviceMode){
+    const roomRef = ref(db,'rooms/'+roomCode);
+    get(roomRef).then(snap=>{ const data=snap.exists()?snap.val():null; const players = data&&data.players?data.players:{player1:null,player2:null}; set(roomRef,{board: emptyBoard(), turn:'X', winner:'', combo:null, players:players}); });
+  }
+});
 </script>
 
 </body>
