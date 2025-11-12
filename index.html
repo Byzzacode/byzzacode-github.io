@@ -4,82 +4,52 @@
 <meta charset="UTF-8">
 <title>Крестики-нолики Mini App</title>
 <style>
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; margin:0; padding:0; }
   body {
     text-align: center;
     font-family: 'Segoe UI', Arial, sans-serif;
     background: linear-gradient(135deg, #e0e0e0, #f8f8f8);
-    margin: 0;
-    padding: 0;
-    color: #222;
     transition: background 0.3s, color 0.3s;
-  }
-  body.dark {
-    background: linear-gradient(135deg,#1c1c1c,#333);
-    color: #eee;
-  }
-  h1 { margin-top: 40px; font-size: 2.2em; color: #333; }
-  body.dark h1 { color: #eee; }
-
-  #menu {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-top: 100px;
+    min-height: 100vh;
   }
-  #menu button {
-    width: 220px;
-    margin: 15px 0;
-    font-size: 18px;
+  body.dark { background: linear-gradient(135deg,#1c1c1c,#333); color:#eee; }
+
+  h1 { margin-top: 20px; color: #333; font-size: 2.2em; }
+  body.dark h1 { color: #eee; }
+
+  #menu, #joinDiv, #gameDiv {
+    max-width: 400px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+	margin-top: 60px;
   }
 
-  table {
-    border-collapse: collapse;
-    margin: 30px auto;
-    box-shadow: 0 0 10px rgba(0,0,0,0.15);
-    border-radius: 10px;
-    overflow: hidden;
-  }
+  table { border-collapse: collapse; margin: 30px auto; box-shadow: 0 0 10px rgba(0,0,0,0.15); border-radius: 10px; overflow: hidden; }
   td {
-    border: 2px solid #222;
-    width: 90px;
-    height: 90px;
-    font-size: 42px;
-    font-weight: bold;
-    text-align: center;
-    vertical-align: middle;
-    cursor: pointer;
-    background: #fff;
-    color: #222;
-    transition: background 0.2s, transform 0.15s, color 0.3s;
-    user-select: none;
+    border: 2px solid #222; width: 90px; height: 90px; font-size: 42px; font-weight: bold;
+    text-align: center; vertical-align: middle; cursor: pointer; background: #fff; color:#000;
+    transition: background 0.2s, transform 0.15s, color 0.2s; user-select: none;
   }
   td:hover { background: #f1f1f1; transform: scale(1.05); }
-  td.win { background: #9effa3 !important; color: #222; animation: glow 0.8s infinite alternate; }
+  td.win { background: #9effa3 !important; animation: glow 0.8s infinite alternate; color:#000; }
+  body.dark td { background:#222; color:#fff; border-color:#555; }
+  body.dark td:hover { background:#333; }
   @keyframes glow { from { box-shadow: 0 0 8px #4caf50; } to { box-shadow: 0 0 16px #00e676; } }
 
-  body.dark td {
-    background: #222;
-    color: #ffeb3b;
-    border: 2px solid #555;
-  }
-  body.dark td.win {
-    background: #00e676 !important;
-    color: #222;
-    box-shadow: 0 0 12px #0f0;
-  }
-
   button, input {
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    background: #4caf50;
-    color: #fff;
-    transition: background 0.25s, transform 0.1s;
+    margin: 0; padding: 12px 24px; font-size: 16px; border: none; border-radius: 8px;
+    cursor: pointer; background: #4caf50; color: #fff; transition: background 0.25s, transform 0.1s;
+    width: 100%;
   }
   button:hover:not([disabled]) { background: #43a047; transform: scale(1.03); }
   button[disabled] { opacity: 0.5; cursor: default; transform: none; }
-  input { border: 2px solid #ccc; color: #333; background: #fff; padding: 10px; width: 200px; }
+  input { border: 2px solid #ccc; color: #333; background: #fff; }
   body.dark input { border:2px solid #555; color:#eee; background:#444; }
 
   #result { margin-top: 20px; font-size: 1.2em; font-weight: bold; color: #222; }
@@ -87,6 +57,9 @@
 
   #playAgainBtn { background: #2196f3; }
   #playAgainBtn:hover:not([disabled]) { background: #1976d2; }
+
+  p span { font-weight: bold; color: #333; }
+  body.dark p span { color: #eee; }
 
   #themeToggle {
     position: fixed; top: 10px; right: 10px;
@@ -98,7 +71,7 @@
 
   @media (max-width: 600px) {
     td { width: 70px; height: 70px; font-size: 32px; }
-    button, input { font-size: 14px; padding: 10px 18px; width: 160px; }
+    button, input { font-size: 14px; padding: 10px 18px; }
   }
 </style>
 </head>
@@ -108,9 +81,9 @@
 <div id="themeToggle">🌓</div>
 
 <div id="menu">
-  <button id="singleBtn">Играть на одном устройстве</button>
-  <button id="createRoomBtn">Создать комнату онлайн</button>
+  <button id="createRoomBtn">Создать комнату</button>
   <button id="joinRoomBtn">Присоединиться к комнате</button>
+  <button id="oneDeviceBtn">Играть на одном устройстве</button>
 </div>
 
 <div id="joinDiv" style="display:none;">
@@ -150,9 +123,9 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 const menu = document.getElementById('menu');
-const singleBtn = document.getElementById('singleBtn');
 const createBtn = document.getElementById('createRoomBtn');
 const joinBtnMenu = document.getElementById('joinRoomBtn');
+const oneDeviceBtn = document.getElementById('oneDeviceBtn');
 const joinDiv = document.getElementById('joinDiv');
 const joinCodeInput = document.getElementById('joinCode');
 const joinBtn = document.getElementById('joinBtn');
@@ -166,64 +139,27 @@ const turnDisplay = document.getElementById('turn');
 const resultDisplay = document.getElementById('result');
 const playAgainBtn = document.getElementById('playAgainBtn');
 
-let roomCode = '';
-let playerSymbol = '';
-let playerId = '';
-let processing = false;
-let singlePlayer = false;
+let roomCode='', playerSymbol='', playerId='', processing=false, oneDeviceMode=false;
 
 function emptyBoard(){ return ["","","","","","","","",""]; }
-function checkWinner(board){
-  const combos = [
-    [0,1,2],[3,4,5],[6,7,8],
-    [0,3,6],[1,4,7],[2,5,8],
-    [0,4,8],[2,4,6]
-  ];
-  for(let c of combos){
-    const [a,b,c1] = c;
-    if(board[a] && board[a]===board[b] && board[a]===board[c1]){
-      return {winner: board[a], combo:c};
-    }
-  }
-  return board.every(cell=>cell) ? {winner:'draw'} : null;
-}
-function showGame(){
-  menu.style.display='none';
-  joinDiv.style.display='none';
-  gameDiv.style.display='block';
-  playerSymbolEl.textContent = playerSymbol;
-  if(singlePlayer) turnDisplay.textContent = "Ход игрока " + playerSymbol;
-}
+function checkWinner(board){ const combos=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]; for(let c of combos){ const [a,b,c1]=c; if(board[a]&&board[a]===board[b]&&board[a]===board[c1]) return {winner: board[a], combo:c}; } return board.every(cell=>cell)?{winner:'draw'}:null; }
+function showGame(){ menu.style.display='none'; joinDiv.style.display='none'; gameDiv.style.display='block'; playerSymbolEl.textContent=playerSymbol; }
 
-const themeToggle = document.getElementById('themeToggle'); 
-themeToggle.addEventListener('click', ()=>{ document.body.classList.toggle('dark'); });
-
-singleBtn.addEventListener('click', ()=>{
-  singlePlayer = true;
-  playerSymbol = 'X';
-  roomCode = 'single';
-  showGame();
-});
+document.getElementById('themeToggle').addEventListener('click', ()=>{ document.body.classList.toggle('dark'); });
 
 createBtn.addEventListener('click', async ()=>{
-  singlePlayer = false;
   roomCode = Math.floor(Math.random()*9000+1000).toString();
   playerSymbol = Math.random()<0.5?'X':'O';
-  playerId = 'player1';
+  playerId='player1';
   const roomRef = ref(db,'rooms/'+roomCode);
-  await set(roomRef,{
-    board: emptyBoard(),
-    turn: 'X',
-    winner: '',
-    combo: null,
-    players: {player1: {symbol:playerSymbol}, player2:null}
-  });
-  showGame();
-  listenGame();
+  await set(roomRef,{ board: emptyBoard(), turn: 'X', winner: '', combo:null, players:{player1:{symbol:playerSymbol},player2:null} });
+  oneDeviceMode=false;
+  showGame(); listenGame();
 });
 
 joinBtnMenu.addEventListener('click', ()=>{ menu.style.display='none'; joinDiv.style.display='block'; });
 backBtn.addEventListener('click', ()=>{ joinDiv.style.display='none'; menu.style.display='flex'; });
+
 joinBtn.addEventListener('click', async ()=>{
   roomCode = joinCodeInput.value.trim();
   if(!roomCode){ alert("Введи код комнаты"); return; }
@@ -235,97 +171,51 @@ joinBtn.addEventListener('click', async ()=>{
   playerSymbol = data.players.player1.symbol==='X'?'O':'X';
   playerId = 'player2';
   await set(ref(db,'rooms/'+roomCode+'/players/player2'),{symbol:playerSymbol});
-  showGame();
-  listenGame();
+  oneDeviceMode=false;
+  showGame(); listenGame();
 });
 
-function listenGame(){
-  if(singlePlayer) return; // offline режим
-  const gameRef = ref(db,'rooms/'+roomCode);
-  onValue(gameRef, snapshot=>{
-    const data = snapshot.val();
-    if(!data) return;
-    const board = data.board || emptyBoard();
-    board.forEach((v,i)=>cells[i].textContent=v);
-    cells.forEach(c=>c.classList.remove('win'));
-    playAgainBtn.disabled = true;
-    if(data.winner){
-      if(data.winner==='draw') resultDisplay.textContent="Ничья!";
-      else resultDisplay.textContent="Победил: "+data.winner;
-      if(data.combo) data.combo.forEach(i=>cells[i].classList.add('win'));
-      cells.forEach(c=>c.style.pointerEvents='none');
-      playAgainBtn.disabled = false;
-    } else {
-      resultDisplay.textContent = "";
-      if(!data.players || !data.players.player2){
-        turnDisplay.textContent='Ждём второго игрока...';
-        cells.forEach(c=>c.style.pointerEvents='none');
-      } else if(data.turn!==playerSymbol){
-        turnDisplay.textContent='Ход соперника...';
-        cells.forEach(c=>c.style.pointerEvents='none');
-      } else {
-        turnDisplay.textContent='Ваш ход';
-        cells.forEach(c=>c.style.pointerEvents='auto');
-      }
-    }
-  });
-}
+oneDeviceBtn.addEventListener('click', ()=>{
+  oneDeviceMode=true;
+  menu.style.display='none';
+  gameDiv.style.display='block';
+  playerSymbol='X';
+  playerSymbolEl.textContent='X';
+  cells.forEach(c=>c.textContent='');
+  turnDisplay.textContent='Ваш ход';
+  playAgainBtn.disabled=true;
+});
 
-let currentTurn = 'X';
+function listenGame(){ if(oneDeviceMode) return; const gameRef = ref(db,'rooms/'+roomCode); onValue(gameRef,snapshot=>{ const data = snapshot.val(); if(!data) return; const board = data.board||emptyBoard(); board.forEach((v,i)=>cells[i].textContent=v); cells.forEach(c=>c.classList.remove('win')); playAgainBtn.disabled=true; if(data.winner){ if(data.winner==='draw') resultDisplay.textContent="Ничья!"; else resultDisplay.textContent="Победил: "+data.winner; if(data.combo) data.combo.forEach(i=>cells[i].classList.add('win')); cells.forEach(c=>c.style.pointerEvents='none'); playAgainBtn.disabled=false; } else { resultDisplay.textContent=""; if(!data.players||!data.players.player2){ turnDisplay.textContent='Ждём второго игрока...'; cells.forEach(c=>c.style.pointerEvents='none'); } else if(data.turn!==playerSymbol){ turnDisplay.textContent='Ход соперника...'; cells.forEach(c=>c.style.pointerEvents='none'); } else{ turnDisplay.textContent='Ваш ход'; cells.forEach(c=>c.style.pointerEvents='auto'); } } }); }
+
 cells.forEach((cell,index)=>{
-  cell.addEventListener('click', async ()=>{
+  cell.addEventListener('click', ()=>{
     if(processing) return;
     processing=true;
-
-    if(singlePlayer){
-      if(cell.textContent!=="") { processing=false; return; }
-      cell.textContent = currentTurn;
-      const boardArr = Array.from(cells).map(c=>c.textContent);
-      const res = checkWinner(boardArr);
-      if(res){
-        if(res.winner==='draw') resultDisplay.textContent="Ничья!";
-        else {
-          resultDisplay.textContent="Победил: "+res.winner;
-          if(res.combo) res.combo.forEach(i=>cells[i].classList.add('win'));
-        }
-        cells.forEach(c=>c.style.pointerEvents='none');
-        playAgainBtn.disabled=false;
-      } else {
-        currentTurn = currentTurn==='X'?'O':'X';
-        turnDisplay.textContent = "Ход игрока " + currentTurn;
-      }
+    if(oneDeviceMode){
+      if(cell.textContent) return;
+      cell.textContent=playerSymbol;
+      const res=checkWinner(Array.from(cells).map(c=>c.textContent));
+      if(res){ if(res.winner==='draw') resultDisplay.textContent="Ничья!"; else resultDisplay.textContent="Победил: "+res.winner; if(res.combo) res.combo.forEach(i=>cells[i].classList.add('win')); cells.forEach(c=>c.style.pointerEvents='none'); playAgainBtn.disabled=false; } 
+      else { playerSymbol=playerSymbol==='X'?'O':'X'; turnDisplay.textContent='Ход: '+playerSymbol; }
       processing=false;
       return;
     }
-
     const gameRef = ref(db,'rooms/'+roomCode);
-    try{
-      await runTransaction(gameRef,current=>{
-        if(!current) return;
-        if(current.winner) return;
-        if(current.board[index]) return;
-        if(current.turn!==playerSymbol) return;
-        current.board[index]=playerSymbol;
-        const res = checkWinner(current.board);
-        if(res){
-          current.winner=res.winner;
-          current.combo=res.combo||null;
-        } else {
-          current.turn = playerSymbol==='X'?'O':'X';
-        }
-        return current;
-      });
-    } catch(e){ console.error(e); }
-    finally{ processing=false; }
+    runTransaction(gameRef,current=>{ if(!current) return; if(current.winner) return; if(current.board[index]) return; if(current.turn!==playerSymbol) return; current.board[index]=playerSymbol; const res=checkWinner(current.board); if(res){ current.winner=res.winner; current.combo=res.combo||null; } else{ current.turn=playerSymbol==='X'?'O':'X'; } return current; }).finally(()=>{ processing=false; });
   });
 });
 
 playAgainBtn.addEventListener('click', ()=>{
-  cells.forEach(c=>{ c.textContent=""; c.classList.remove('win'); c.style.pointerEvents='auto'; });
-  resultDisplay.textContent="";
-  currentTurn='X';
-  turnDisplay.textContent = singlePlayer ? "Ход игрока X" : "";
+  cells.forEach(c=>{ c.textContent=''; c.classList.remove('win'); c.style.pointerEvents='auto'; });
+  turnDisplay.textContent='Ваш ход';
+  playerSymbol='X';
+  playerSymbolEl.textContent='X';
   playAgainBtn.disabled=true;
+  if(!oneDeviceMode){
+    const roomRef = ref(db,'rooms/'+roomCode);
+    get(roomRef).then(snap=>{ const data=snap.exists()?snap.val():null; const players = data&&data.players?data.players:{player1:null,player2:null}; set(roomRef,{board: emptyBoard(), turn:'X', winner:'', combo:null, players:players}); });
+  }
 });
 </script>
 
